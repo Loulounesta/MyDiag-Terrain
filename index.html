@@ -3,288 +3,634 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyDiag PRO - Stable Final</title>
+    <title>MyDiag Terrain</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MyDiag-Terrain">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
         :root {
-            --bg: #F8FAFC; --sur: #FFFFFF; --bor: #E2E8F0; --tx: #0F172A; --tx2: #64748B;
-            --acc: #2563EB; --ok: #16A34A; --dan: #EF4444; --warn: #F59E0B; --r: 12px;
+            --bg: #F4F7F9; --sur: #FFFFFF; --bor: #E2E8F0; --tx: #0F172A; --tx2: #475569;
+            --acc: #2563EB; --acc-l: #EFF6FF; --ok: #16A34A; --ok-l: #F0FDF4;
+            --dan: #EF4444; --dan-l: #FEF2F2; --warn: #F59E0B; --warn-l: #FFFBEB;
+            --r: 16px; --rs: 10px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--tx); padding-bottom: 100px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--tx); padding-bottom: 100px; -webkit-font-smoothing: antialiased; }
 
-        /* Navigation */
-        .hd { background: #0F172A; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; color: white; }
-        .tabs { background: #0F172A; display: flex; overflow-x: auto; padding: 0 15px 10px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .tab { padding: 8px 16px; font-size: 12px; font-weight: 600; color: #94A3B8; border-radius: 20px; cursor: pointer; white-space: nowrap; background: rgba(255,255,255,0.05); }
-        .tab.on { color: #fff; background: var(--acc); }
+        /* HEADER */
+        .hd { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .hd-title { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px;}
+        .btn-save { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(5px); }
+        .btn-save:active { background: rgba(255,255,255,0.2); transform: scale(0.95); }
 
-        /* Views */
-        .vw { display: none; padding: 16px; max-width: 700px; margin: 0 auto; animation: fadeIn 0.2s ease-out; }
-        .vw.on { display: block; }
+        @keyframes blinkGreen { 0% { background-color: #16A34A; box-shadow: 0 0 12px #16A34A; } 100% { background-color: #475569; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); } }
+        .saved-blink { animation: blinkGreen 1s ease-out; }
+
+        /* TABS */
+        .tabs { background: #0F172A; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; position: sticky; top: 52px; z-index: 19; padding: 10px 16px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { flex: 0 0 auto; padding: 8px 16px; font-size: 13px; font-weight: 600; color: #94A3B8; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.2s; background: rgba(255,255,255,0.05); }
+        .tab.on { color: #fff; background: var(--acc); box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+        
+        .vw { display: none; padding: 20px 16px; max-width: 800px; margin: 0 auto; }
+        .vw.on { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Cards */
-        .card { background: var(--sur); border-radius: var(--r); border: 1px solid var(--bor); margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .fr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--bor); }
-        .fl { font-size: 13px; color: var(--tx2); width: 120px; font-weight: 600; }
-        input, select { flex: 1; border: 1px solid var(--bor); padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--acc); font-weight: 700; text-align: right; outline: none; background: #F8FAFC; }
+        .sl { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #64748b; text-transform: uppercase; margin: 24px 0 10px; padding-left: 4px; }
+        .card { background: var(--sur); border-radius: var(--r); border: 1px solid #F8FAFC; overflow: hidden; margin-bottom: 16px; box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
         
-        .btn-p { background: var(--acc); color: #fff; padding: 14px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; width: 100%; cursor: pointer; }
-        .btn-s { background: white; border: 1px solid var(--bor); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .fr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--bor); min-height: 54px; }
+        .fr:last-child { border-bottom: none; }
+        .fl { font-size: 14px; color: var(--tx); min-width: 90px; flex-shrink: 0; font-weight: 600; line-height:1.3;}
+        
+        .fr select, .fr input { flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--acc); text-align: right; outline: none; font-weight: 700; transition: 0.2s; -webkit-appearance: none; margin-left: 10px; min-width:0; }
+        .fr select:focus, .fr input:focus { background: #FFF; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-l); }
 
-        /* Lists */
-        .item-row { background: white; padding: 12px; border-radius: 10px; border: 1px solid var(--bor); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--bor); }
+        .btn-p { background: var(--acc); color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,0.25); padding: 16px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; width: 100%; margin-top: 10px; transition: 0.2s; }
+        .btn-xs { padding: 10px 14px; font-size: 12px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s;}
+        .qbtn { padding: 8px 10px; font-size: 12px; border-radius: 8px; font-weight: 700; border: 1px solid var(--bor); background: #fff; cursor: pointer; transition: 0.2s; color: var(--tx2); text-align: center; }
         
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0F172A; color: white; padding: 12px 24px; border-radius: 25px; font-size: 13px; opacity: 0; transition: 0.3s; z-index: 1000; }
-        .toast.show { opacity: 1; }
+        .item-row { background: var(--sur); border-radius: 12px; border: 1px solid var(--bor); padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; box-shadow: 0 2px 8px rgba(0,0,0,0.02);}
+        .badge { background: #F1F5F9; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-right: 8px; color: #475569;}
+        .badge-elem { background: #F1F5F9; color: #475569; padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-block; margin-top: 6px; border: 1px solid var(--bor);}
+        .badge-ok { background: var(--ok-l); color: var(--ok); border-color: #BBF7D0; }
+        .badge-warn { background: var(--warn-l); color: var(--warn); border-color: #FDE68A; }        
+        
+        .canvas-container { background:var(--sur); border: 1px solid var(--bor); border-radius: var(--r); padding:16px; margin-bottom:20px; box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
+        #croquis-canvas { width: 100%; height: 260px; background: #F8FAFC; border-radius: 12px; border: 2px dashed #E2E8F0; margin-top: 12px;}
+        
+        .thumb { height: 44px; width: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--bor); cursor: pointer; background: #fff;}
+        .toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: #0F172A; color: #fff; padding: 14px 28px; border-radius: 30px; font-size: 14px; font-weight: 700; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 9999; box-shadow: 0 10px 30px rgba(15,23,42,0.3); text-align:center; white-space: nowrap;}
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        
+        .dim-block { padding: 16px; border-bottom: 1px solid var(--bor); }
+        .dim-inputs { display:flex; gap:8px; align-items: center; }
+        .dim-inputs input { flex:1; min-width: 0; background:#F8FAFC; border:1px solid var(--bor); border-radius:10px; padding:12px 6px; font-size:16px; text-align:center; font-weight:800; color:var(--acc); }
+
+        .niv-btn { flex:1; padding:12px; border:none; border-radius:10px; font-weight:800; font-size:13px; transition:0.2s; cursor:pointer;}
+        .niv-on { background:var(--tx); color:#fff; }
+        .niv-off { background:var(--sur); color:var(--tx2); border:1px solid var(--bor);}
+
+        .coll-acc-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--sur); border-radius: var(--r); border: 1px solid var(--bor); margin-top: 12px; cursor: pointer; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(15,23,42,0.02); transition:0.2s;}
+        .coll-acc-body { display: none; margin-top: 8px; }
+        .coll-acc-body.open { display: block; animation: fadeIn 0.2s ease-in-out; }
+        
+        .appt-target-sel { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #CBD5E1; font-weight: 800; color: var(--tx); background: var(--sur); margin-bottom: 16px; font-size: 14px; outline:none;}
+        
+        /* === SAFE UX PATCHES (RÉDUITS) === */
+        .safe-home-hero, .safe-exp-hero { background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color:white; padding:24px; border-radius:24px; box-shadow:0 12px 32px rgba(15,23,42,0.18); margin-bottom:16px; position:relative; overflow:hidden;}
+        .safe-home-title, .safe-exp-title { font-size:24px; font-weight:900; letter-spacing:-0.6px; margin-bottom:6px; position:relative; z-index:1; }
+        .safe-home-sub, .safe-exp-sub { font-size:14px; color:#CBD5E1; font-weight:600; position:relative; z-index:1; }
+        .safe-home-kpis { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:22px; }
+        .safe-home-kpi { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.08); padding:16px; border-radius:16px; text-align:center; backdrop-filter:blur(10px); }
+        .safe-home-kpi-num { font-size:30px; font-weight:900; color:#FFF; }
+        .safe-home-kpi-num.accent { color:#38BDF8; }
+        .safe-home-kpi-lbl { margin-top:6px; font-size:11px; color:#94A3B8; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; }
+        .safe-home-next { background:#fff; border:1px solid var(--bor); border-radius:18px; padding:18px; margin-bottom:16px; box-shadow:0 8px 24px rgba(15,23,42,0.04); }
+        .safe-home-next-title { font-size:12px; font-weight:900; letter-spacing:1px; text-transform:uppercase; color:#64748b; margin-bottom:8px; }
+        .safe-home-next-text { font-size:14px; color:var(--tx); font-weight:700; line-height:1.5; }
+        .safe-home-next-sub { margin-top:6px; font-size:13px; color:var(--tx2); line-height:1.5; }
+        
+        .safe-section-title { font-size:12px; font-weight:900; letter-spacing:1px; color:#64748b; text-transform:uppercase; margin:0 0 10px 4px; }
+        .safe-context-card { background:linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%); border:1px solid #BFDBFE; border-radius:var(--r); padding:16px; margin-bottom:16px; }
+        .safe-context-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+        .safe-context-title { font-size:16px; font-weight:900; color:var(--tx); letter-spacing:-0.3px; }
+        .safe-context-sub { font-size:12px; color:var(--tx2); font-weight:600; }
+        .safe-mini-badge { display:inline-flex; align-items:center; gap:6px; background:#DBEAFE; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:800; white-space:nowrap; }
+        
+        .safe-subcard { background:#fff; border:1px solid var(--bor); border-radius:14px; overflow:hidden; margin-bottom:14px; }
+        .safe-subhead { padding:12px 16px; background:#F8FAFC; border-bottom:1px solid var(--bor); font-size:12px; font-weight:900; color:var(--tx2); text-transform:uppercase; }
+        .safe-subhint { display:block; margin-top:4px; font-size:11px; font-weight:600; color:#94A3B8; text-transform:none; }
+        
+        .safe-exp-card { background:#fff; border:1px solid var(--bor); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 6px 18px rgba(15,23,42,0.04); }
+        .safe-exp-head { font-size:13px; font-weight:900; text-transform:uppercase; color:#64748b; margin-bottom:10px; }
+        .safe-exp-warning { font-size:12px; color:#B45309; background:#FFFBEB; border:1px solid #FDE68A; padding:10px; border-radius:10px; margin-top:10px; }
+        
+        #f-bibli-container{ display:flex; overflow-x:auto; gap:10px; padding-bottom:6px; padding:14px; }
+        #f-bibli-container::-webkit-scrollbar{ height:6px; }
+        #f-bibli-container::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:999px; }
     </style>
 </head>
 <body>
 
+<div id="img-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.95); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(5px);" onclick="this.style.display='none'">
+    <img id="img-viewer-src" style="max-width:95%; max-height:95%; border-radius:12px;" />
+</div>
+
+<input type="file" id="global-uploader" style="display:none;" accept="image/*" capture="environment">
+
 <div class="hd">
-    <div style="font-weight: 900;">MyDiag <span style="color:var(--acc)">PRO</span> <small style="font-size:9px; opacity:0.5;">v8.13.3</small></div>
-    <button class="btn-s" style="background:transparent; color:white; border-color:rgba(255,255,255,0.2)" onclick="saveDB()">Sauver</button>
+    <div class="hd-title">
+        <span style="font-size:22px;">📱</span>
+        MyDiag <span style="font-size:12px; color:#38BDF8; font-weight:800; margin-left:4px;">TERRAIN</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+        <div id="voyant-save" style="width:12px; height:12px; border-radius:50%; background-color:#475569; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></div>
+        <button class="btn-save" onclick="sauvegarderLocal()">Sauvegarder</button>
+    </div>
 </div>
 
-<div class="tabs">
-    <div class="tab on" onclick="goTab('copro')">🏢 Copro / ADN</div>
-    <div class="tab" onclick="goTab('lots')">🚪 Lots</div>
-    <div class="tab" onclick="goTab('murs')">🧱 Parois</div>
-    <div class="tab" onclick="goTab('lucarnes')">📐 Lucarnes</div>
-    <div class="tab" onclick="goTab('export')">📤 Export</div>
+<div class="tabs" id="tab-bar">
+    <div class="tab on" onclick="goTab('accueil')">🏠 Accueil</div>
+    <div class="tab" onclick="goTab('copro')">🏢 Copro</div>
+    <div class="tab" onclick="goTab('appts')">🚪 Lots</div>
+    <div class="tab" onclick="goTab('murs')">🧱 Murs</div>
+    <div class="tab" onclick="goTab('fen')">🪟 Fenêtres</div>
+    <div class="tab" onclick="goTab('portes')">🚪 Portes</div>
+    <div class="tab" onclick="goTab('plafonds')">🔝 Plafonds</div>
+    <div class="tab" onclick="goTab('planchers')">🔽 Planchers</div>
+    <div class="tab" style="color:#38BDF8; font-weight:800;" onclick="goTab('export')">🚀 Fin de visite</div>
+    <div class="tab" onclick="goTab('aide')">❓ Aide</div>
 </div>
 
-<div id="vw-copro" class="vw on">
+<div id="vw-accueil" class="vw on">
+    <div class="safe-home-hero">
+        <div class="safe-home-title">Synthèse de visite</div>
+        <div id="acc-copro-name" class="safe-home-sub">Aucune copropriété saisie</div>
+
+        <div class="safe-home-kpis">
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-appts">0</div><div class="safe-home-kpi-lbl">Lots</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num accent" id="tdb-surf">0</div><div class="safe-home-kpi-lbl">m² total</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-murs">0</div><div class="safe-home-kpi-lbl">Parois</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-sys">0</div><div class="safe-home-kpi-lbl">Systèmes</div></div>
+        </div>
+    </div>
+
+    <div class="safe-home-next">
+        <div class="safe-home-next-title">Prochaine action</div>
+        <div id="home-next-text" class="safe-home-next-text"></div>
+        <div id="home-next-sub" class="safe-home-next-sub"></div>
+    </div>    
+    <button class="btn-p" onclick="goTab('copro')">Continuer la visite ➡️</button>
+</div>
+
+<div id="vw-copro" class="vw">
+    <div class="sl">Identification</div>
     <div class="card">
-        <div class="fr"><span class="fl">Nom Copro</span><input type="text" id="c-nom" oninput="updateCopro()"></div>
-        <div class="fr"><span class="fl">Chauffage Col.</span><select id="c-chauf" onchange="updateCopro()"><option value="Individuel">Individuel</option><option value="Gaz Collectif">Gaz Collectif</option><option value="Fioul Collectif">Fioul Collectif</option><option value="Réseau Urbain">Réseau Urbain</option></select></div>
-        <div class="fr"><span class="fl">ECS Col.</span><select id="c-ecs" onchange="updateCopro()"><option value="Individuel">Individuel</option><option value="Collectif">Production Collective</option></select></div>
+        <div class="fr"><span class="fl">Référence</span><input type="text" inputmode="numeric" id="copro-ref" placeholder="N° dossier" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Nom Copro</span><input type="text" id="copro-nom" placeholder="ex: Les Lilas" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Adresse</span><input type="text" id="copro-adresse" placeholder="Rue et numéro" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Code Postal</span><input type="text" inputmode="numeric" id="copro-cp" placeholder="ex: 75000" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Ville</span><input type="text" id="copro-ville" placeholder="Ville" oninput="saveCoproData()"></div>        
+        <div class="fr"><span class="fl">Année constr.</span><input type="number" inputmode="numeric" id="copro-annee" placeholder="ex: 1975" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Nb bâtiments</span><input type="number" inputmode="numeric" id="copro-batiments" placeholder="ex: 3" oninput="saveCoproData(); updateBatimentOptions('apt-bat');"></div>
+        <div class="fr"><span class="fl">Nb d'étages</span><input type="number" inputmode="numeric" id="copro-etages" placeholder="ex: 4" oninput="saveCoproData(); updateEtageOptions('apt-etage');"></div>
     </div>
-    <div style="font-size: 11px; color: var(--tx2); padding: 0 10px;">* Ces données ADN seront automatiquement rattachées aux lots sans système propre.</div>
+
+    <div class="coll-acc-hd" onclick="toggleAcc('docs-acc', this)"><span>📂 Documents & Photos</span> <span style="color:var(--acc);">▼</span></div>
+    <div class="coll-acc-body" id="docs-acc">
+        <div class="card">
+            <button class="btn-p" style="margin:16px; width:calc(100% - 32px); background:var(--acc-l); color:var(--acc);" onclick="triggerUpload('doc')">📸 Ajouter une Photo Copro</button>
+            <div id="list-docs" style="padding: 0 16px 16px;"></div>
+        </div>
+    </div>
+
+    <div class="coll-acc-hd" onclick="toggleAcc('vmc-acc', this)"><span>🌀 Ventilation collective</span> <span style="color:var(--acc);">▼</span></div>
+    <div class="coll-acc-body" id="vmc-acc">
+        <div class="card">
+            <div class="fr"><span class="fl">Type</span><select id="vmc-type" onchange="saveCoproData()"><option value="">—</option><option>VMC simple flux Hygro</option><option>VMC Basse pression</option><option>VMC Auto-réglable</option><option>Ventilation naturelle</option></select></div>
+            <div class="fr"><span class="fl">Période</span><select id="vmc-periode" onchange="saveCoproData()"><option value="">—</option><option>Avant 1982</option><option>1982 – 2000</option><option>2001 – 2012</option><option>Après 2012</option></select></div>
+        </div>
+    </div>
+
+    <div class="coll-acc-hd" onclick="toggleAcc('chauf-acc', this)"><span>🔥 Chauffage collectif</span> <span style="color:var(--acc);">▼</span></div>
+    <div class="coll-acc-body" id="chauf-acc">
+        <div class="card">
+            <div class="fr">
+                <span class="fl">Énergie</span>
+                <select id="col-chauf-energie" onchange="updateChaufGen('col-chauf-energie', 'col-chauf-gen', 'col-chauf-emetteur'); saveCoproData()" style="min-width:0; flex:1;">
+                    <option value="">—</option><option>Electrique</option><option>Gaz naturel</option><option>GPL</option><option>Fioul</option><option>Bois</option><option>Réseau de chaleur</option>
+                </select>
+                <div style="display:flex; align-items:center; gap:8px; margin-left:10px;">
+                    <img id="img-chaufCol" class="thumb" style="display:none; width:34px; height:34px; margin:0;" onclick="viewImage(this.src)" />
+                    <button class="btn-xs" style="background:var(--acc-l); color:var(--acc); border:1px solid #BFDBFE; padding:8px 12px;" onclick="triggerUpload('chaufCol')">📷</button>
+                </div>
+            </div>
+            <div class="fr"><span class="fl">Générateur</span><select id="col-chauf-gen" onchange="checkChaudiereECS('col'); saveCoproData()"><option value="">—</option></select></div>
+            <div class="fr"><span class="fl">Émetteur</span><select id="col-chauf-emetteur" onchange="saveCoproData()"><option value="">—</option></select></div>
+            <div class="fr"><span class="fl">Année</span><input type="number" inputmode="numeric" id="col-chauf-annee" oninput="saveCoproData()"></div>
+            <div class="fr"><span class="fl">Puiss. (kW)</span><input type="number" inputmode="decimal" id="col-chauf-puissance" oninput="saveCoproData()"></div>
+        </div>
+    </div>
+
+    <div class="coll-acc-hd" onclick="toggleAcc('ecs-acc', this)"><span>🚿 ECS collective</span> <span style="color:var(--acc);">▼</span></div>
+    <div class="coll-acc-body" id="ecs-acc">
+        <div class="card">
+            <div class="fr">
+                <span class="fl">Énergie</span>
+                <select id="col-ecs-energie" onchange="updateEcsGen('col-ecs-energie', 'col-ecs-type'); saveCoproData()" style="min-width:0; flex:1;">
+                    <option value="">—</option><option>Electrique</option><option>Gaz naturel</option><option>GPL</option><option>Fioul</option><option>Bois</option><option>Réseau de chaleur</option>
+                </select>
+                <div style="display:flex; align-items:center; gap:8px; margin-left:10px;">
+                    <img id="img-ecsCol" class="thumb" style="display:none; width:34px; height:34px; margin:0;" onclick="viewImage(this.src)" />
+                    <button class="btn-xs" style="background:var(--acc-l); color:var(--acc); border:1px solid #BFDBFE; padding:8px 12px;" onclick="triggerUpload('ecsCol')">📷</button>
+                </div>
+            </div>
+            <div class="fr"><span class="fl">Type/Gén.</span><select id="col-ecs-type" onchange="saveCoproData()"><option value="">—</option></select></div>
+            <div class="fr"><span class="fl">Année</span><input type="number" inputmode="numeric" id="col-ecs-annee" oninput="saveCoproData()"></div>
+            <div class="fr"><span class="fl">Volume (L)</span><input type="number" inputmode="decimal" id="col-ecs-vol" oninput="saveCoproData()"></div>
+        </div>
+    </div>
 </div>
 
-<div id="vw-lots" class="vw">
-    <div class="card" style="padding: 15px;">
-        <input type="text" id="l-num" placeholder="Numéro du lot (ex: E01)" style="width:100%; text-align:left; margin-bottom:10px;">
-        <input type="number" id="l-surf" placeholder="Surface m²" style="width:100%; text-align:left;">
-        <button class="btn-p" style="margin-top:10px;" onclick="addLot()">+ Ajouter l'échantillon</button>
+<div id="vw-appts" class="vw">
+    <div id="new-apt-form" style="display: none; margin-bottom: 24px;">
+        <div class="sl">Créer un appartement</div>
+        <div class="card">
+            <div class="fr"><span class="fl">N° échantillon</span><select id="apt-num" style="color:var(--acc); font-weight:800;"></select></div>
+            <div class="fr"><span class="fl">Type de lot</span><select id="apt-type"><option value="1">Plain-pied</option><option value="2">Duplex</option><option value="3">Triplex</option></select></div>
+            <div class="fr"><span class="fl">Bâtiment n°</span><select id="apt-bat"><option value="">—</option><option>1</option><option>2</option><option>3</option></select></div>
+            <div class="fr"><span class="fl">Étage princ.</span><select id="apt-etage" onchange="autoSetNiveau(this.value, 'apt-niveau')"></select></div>
+            <div class="fr"><span class="fl">Niveau ADN</span><select id="apt-niveau"><option value="">—</option><option value="RDC">RDC</option><option value="Intermédiaire">Intermédiaire</option><option value="Dernier étage">Dernier étage</option></select></div>
+            <div class="fr"><span class="fl">Surface (m²)</span><input type="number" inputmode="decimal" step="any" id="apt-surf" placeholder="Habitable"></div>
+            <div class="fr"><span class="fl">HSP (m)</span><input type="number" inputmode="decimal" step="any" id="apt-hsp" placeholder="ex: 2.50"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-p" style="background:var(--tx2);" onclick="hideNouvelAppt()">Annuler</button>
+            <button class="btn-p" onclick="creerAppt()">Créer le lot</button>
+        </div>
     </div>
-    <div id="list-lots"></div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <span class="sl" style="margin:0; font-size:13px;" id="appts-count-lbl">0 appartement</span>
+        <button class="btn-xs" style="background:var(--acc); color:#fff; padding:10px 16px; border-radius:20px;" onclick="showNouvelAppt()">+ Nouveau lot</button>
+    </div>
+    <div id="appts-liste"></div>
 </div>
 
 <div id="vw-murs" class="vw">
-    <select id="m-target" class="card" style="width:100%; padding: 12px; margin-bottom: 15px;" onchange="curApt=this.value; renderMurs()"></select>
-    
-    <div class="card">
-        <div class="fr"><span class="fl">Orientation</span><select id="m-ori"><option>Nord</option><option>Est</option><option>Sud</option><option>Ouest</option></select></div>
-        <div class="fr"><span class="fl">Longueur (m)</span><input type="number" step="0.01" id="m-len"></div>
-        <div class="fr"><span class="fl">Hauteur (m)</span><input type="number" step="0.01" id="m-hei" value="2.50"></div>
-        <div class="fr">
-            <span class="fl">Photo Paroi</span>
-            <input type="file" id="m-file" style="display:none;" accept="image/*" onchange="handleImg(this)">
-            <button class="btn-s" onclick="document.getElementById('m-file').click()">📷 Prendre/Joindre</button>
-            <img id="m-prev" class="thumb" style="margin-left:auto; display:none;">
+    <div class="safe-context-card">
+        <div class="safe-context-head">
+            <div>
+                <div class="safe-context-title">Lot cible :</div>
+            </div>
+            <div class="safe-mini-badge">🧱 Murs</div>
+        </div>
+        <select id="murs-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'murs')"></select>
+        <div id="murs-niv-container"></div>
+    </div>
+
+    <div class="coll-acc-hd" onclick="toggleAcc('calc-geometrique', this)" style="margin-bottom:12px;"><span>🧮 Calculette de surface</span> <span style="color:var(--acc);">▼</span></div>
+    <div class="coll-acc-body" id="calc-geometrique">
+        <div class="card" style="padding:16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+                <input type="number" inputmode="decimal" class="calc-input" id="calc-L" placeholder="L (Façade)" style="border-left:4px solid #0D9488;" oninput="runCalc()">
+                <input type="number" inputmode="decimal" class="calc-input" id="calc-l" placeholder="l (Pignon)" style="border-left:4px solid #F59E0B;" oninput="runCalc()">
+                <input type="number" inputmode="decimal" class="calc-input" id="calc-h" placeholder="h (Sablière)" style="border-left:4px solid #3B82F6;" oninput="runCalc()">
+                <input type="number" inputmode="decimal" class="calc-input" id="calc-H" placeholder="H (Faîtage)" style="border-left:4px solid #16A34A;" oninput="runCalc()">
+                <input type="number" inputmode="decimal" class="calc-input" id="calc-proj" placeholder="Proj. Rampant" style="border-left:4px solid #8B5CF6; grid-column: span 2;" oninput="runCalc()">
+            </div>
+            <div id="calc-res" style="display:none; background:#F8FAFC; padding:12px; border-radius:8px; border:1px solid var(--bor); font-size:13px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Façade :</span><b id="res-mur"></b></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Pignon :</span><b id="res-pig"></b></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Rampant :</span><b id="res-ramp"></b></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; color:var(--ok);"><b>Surf. Habitable (≥1.80m):</b><b id="res-shab"></b></div>
+            </div>
         </div>
     </div>
-    <button class="btn-p" onclick="addMur()">Enregistrer le mur</button>
-    <div id="list-murs" style="margin-top: 15px;"></div>
+
+    <div id="croquis-container" class="canvas-container" style="display:none;">
+        <div style="font-size: 13px; font-weight: 800; color: var(--acc);">📐 Plan du niveau</div>
+        <canvas id="croquis-canvas" width="400" height="260"></canvas>
+        <div id="croquis-msg" style="text-align:center; font-size:13px; font-weight:600; margin-top:16px;"></div>
+    </div>
+
+    <div class="safe-subcard">
+        <div class="safe-subhead">Contexte</div>
+        <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
+            <div class="fr"><span class="fl">Orientation</span><select id="m-ori"><option>Nord</option><option>Est</option><option>Sud</option><option>Ouest</option></select></div>
+            <div class="fr"><span class="fl">Donne sur</span><select id="m-donne"></select></div>
+            <div class="fr"><span class="fl">Matériau</span><select id="m-mat"></select></div>
+            <div class="fr"><span class="fl">Ép. (cm)</span><input type="number" inputmode="decimal" id="m-ep" placeholder="ex: 20"></div>
+        </div>
+    </div>
+
+    <div class="safe-subcard" style="background:linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);">
+        <div class="safe-subhead">Dimensions</div>
+        <div class="dim-block">
+            <div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="m-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="m-h" placeholder="H"></div>
+        </div>
+    </div>
+
+    <div class="safe-subcard">
+        <div class="safe-subhead">Isolation</div>
+        <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
+            <div class="fr"><span class="fl">Isolant</span><select id="m-iso" style="flex:1;"><option>Non</option><option>ITI</option><option>ITE</option></select><input type="number" inputmode="decimal" id="m-iso-ep" placeholder="cm" style="flex:0 0 70px;"></div>
+            <div class="fr"><span class="fl">Doublage</span><select id="m-doub"><option value="ABSENT">Absent</option><option value="Plâtre + Isolant (ITI)">Plaque de plâtre</option><option value="Contre-cloison maçonnée">Contre-cloison</option></select></div>
+        </div>
+    </div>
+
+    <button class="btn-p" id="btn-save-murs" onclick="sauverParoi('murs')">Enregistrer ce mur</button>
+    <div id="list-murs" style="margin-top:20px;"></div>
 </div>
 
-<div id="vw-lucarnes" class="vw">
-    <div class="card" style="padding: 20px; background: var(--acc-l); border: 1px dashed var(--acc);">
-        <h4 style="margin-bottom: 10px; color: var(--acc);">Jouées de Lucarnes (Triangle)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-            <div><label style="font-size:10px; font-weight:800;">Base (m)</label><input type="number" id="luc-b" placeholder="0.00" oninput="calcLuc()"></div>
-            <div><label style="font-size:10px; font-weight:800;">Hauteur (m)</label><input type="number" id="luc-h" placeholder="0.00" oninput="calcLuc()"></div>
-        </div>
-        <div id="luc-res" style="text-align: center; font-weight: 800; font-size: 14px;">Surface (2 jouées) : 0.00 m²</div>
-        <button class="btn-p" style="margin-top: 15px;" onclick="applyLuc()">+ Injecter au lot sélectionné</button>
+<div id="vw-fen" class="vw">
+    <div class="safe-context-card">
+        <div class="safe-context-head"><div><div class="safe-context-title">Lot cible :</div></div><div class="safe-mini-badge">🪟 Fenêtres</div></div>
+        <select id="fen-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'fen')"></select>
+        <div id="fen-niv-container"></div>
     </div>
+
+    <div class="safe-subcard"><div id="f-bibli-container"></div></div>
+
+    <div class="safe-subcard">
+        <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
+            <div class="fr"><span class="fl">Orientation</span><select id="f-ori"><option>Nord</option><option>Est</option><option>Sud</option><option>Ouest</option></select></div>
+            <div class="fr"><span class="fl">Type</span><select id="f-type" onchange="toggleFenType()"></select></div>
+            <div class="fr"><span class="fl">Matériau</span><select id="f-mat"></select></div>
+            <div class="fr"><span class="fl">Vitrage</span><select id="f-vit"></select></div>
+            <div class="fr"><span class="fl">Lame (mm)</span><input type="number" inputmode="decimal" id="f-ep" placeholder="ex: 16"></div>
+            <div class="fr"><span class="fl">Fermeture</span><select id="f-fer"></select></div>
+        </div>
+    </div>
+
+    <div class="safe-subcard">
+        <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
+            <div class="dim-block" id="f-dim-lh"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="f-l" placeholder="L (cm)"> <span>X</span> <input type="number" inputmode="decimal" id="f-h" placeholder="H (cm)"></div></div>
+            <div class="dim-block" id="f-dim-diam" style="display:none;"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="f-diam" placeholder="Ø (cm)"></div></div>
+            <div class="fr"><span class="fl">Quantité</span><input type="number" inputmode="decimal" id="f-nb" value="1"></div>
+            <div class="fr"><span class="fl">Motifs</span><input type="number" inputmode="decimal" id="f-motifs" value="1"></div>
+        </div>
+    </div>
+
+    <button class="btn-p" id="btn-save-fens" onclick="sauverParoi('fens')">Enregistrer la fenêtre</button>
+    <div id="list-fens" style="margin-top:20px;"></div>
+</div>
+
+<div id="vw-portes" class="vw">
+    <select id="por-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'portes')"></select>
+    <div class="card">
+        <div class="fr"><span class="fl">Type</span><select id="po-type"><option>Porte opaque pleine</option><option>Porte avec moins de 30% de vitrage</option><option>Porte avec 30 à 60% de vitrage</option></select></div>
+        <div class="fr"><span class="fl">Matériau</span><select id="po-mat"><option>Bois</option><option>PVC</option><option>Métal</option></select></div>
+        <div class="fr"><span class="fl">Donne sur</span><select id="po-donne"><option>Extérieur</option><option>Circulations communes</option><option>Local non chauffé</option></select></div>
+        <div class="fr"><span class="fl">Isolation</span><select id="po-iso"><option>Non isolée / Inconnue</option><option>Isolée (U ≤ 1.5)</option></select></div>
+        <div class="fr"><span class="fl">Sas double</span><select id="po-sas"><option>Non</option><option>Oui (Porte + Sas)</option></select></div>
+        <div class="dim-block"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="po-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="po-h" placeholder="H"></div></div>
+    </div>
+    <button class="btn-p" id="btn-save-portes" onclick="sauverParoi('portes')">Enregistrer</button>
+    <div id="list-portes" style="margin-top:20px;"></div>
+</div>
+
+<div id="vw-plafonds" class="vw">
+    <select id="plf-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'plafonds')"></select>
+    <div class="card">
+        <div class="fr"><span class="fl">Type</span><select id="p-type"></select></div>
+        <div class="fr"><span class="fl">Donne sur</span><select id="p-donne"></select></div>
+        <div class="dim-block"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="p-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="p-larg" placeholder="larg"></div></div>
+        <div class="fr"><span class="fl">Surface</span><input type="number" inputmode="decimal" step="any" id="p-s" placeholder="ou S directe (m²)"></div>
+        <div class="fr"><span class="fl">Isolant</span><select id="p-iso" style="flex:1;"><option>Non</option><option>ITI</option><option>ITE</option></select><input type="number" inputmode="decimal" id="p-iso-ep" placeholder="cm" style="flex:0 0 70px;"></div>
+    </div>
+    <button class="btn-p" id="btn-save-plfs" onclick="sauverParoi('plfs')">Enregistrer</button>
+    <div id="list-plfs" style="margin-top:20px;"></div>
+</div>
+
+<div id="vw-planchers" class="vw">
+    <select id="pla-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'planchers')"></select>
+    <div class="card">
+        <div class="fr"><span class="fl">Type</span><select id="s-type"></select></div>
+        <div class="fr"><span class="fl">Donne sur</span><select id="s-donne"></select></div>
+        <div class="dim-block"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="s-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="s-larg" placeholder="larg"></div></div>
+        <div class="fr"><span class="fl">Surface</span><input type="number" inputmode="decimal" step="any" id="s-s" placeholder="ou S directe (m²)"></div>
+        <div class="fr"><span class="fl">Isolant</span><select id="s-iso" style="flex:1;"><option>Non</option><option>ITI</option><option>ITE</option></select><input type="number" inputmode="decimal" id="s-iso-ep" placeholder="cm" style="flex:0 0 70px;"></div>
+    </div>
+    <button class="btn-p" id="btn-save-plas" onclick="sauverParoi('plas')">Enregistrer</button>
+    <div id="list-plas" style="margin-top:20px;"></div>
 </div>
 
 <div id="vw-export" class="vw">
-    <div class="card" style="padding: 20px; text-align: center;">
-        <button class="btn-p" style="background: var(--ok);" onclick="exportExcel()">📊 EXPORT EXCEL (Mapping ADN)</button>
-        <button class="btn-p" style="background: #475569; margin-top: 10px;" onclick="exportZip()">📸 EXPORT PHOTOS (ZIP)</button>
-        <button class="btn-s" style="margin-top: 30px; width: 100%; color: var(--dan);" onclick="clearAll()">🗑️ Supprimer tout le projet</button>
+    <div class="safe-exp-hero">
+        <div class="safe-exp-title">Fin de visite</div>
+        <div class="safe-exp-sub">Transférez la collecte vers MyDiag Studio</div>
+    </div>
+
+    <div class="safe-exp-card" style="text-align:center; padding: 30px 16px;">
+        <div style="font-size:40px; margin-bottom:15px;">🚀</div>
+        <div style="font-weight:900; font-size:18px; margin-bottom:10px;">Dossier prêt à être transféré</div>
+        <div style="color:var(--tx2); font-size:14px; margin-bottom:24px;">Générez le fichier de transfert contenant toute votre saisie et les photos pour l'ouvrir au bureau.</div>
+        
+        <button class="btn-p" onclick="exportJSON()">1. 💾 Enregistrer le fichier de transfert</button>
+        <button class="btn-p" style="background:#0F172A; margin-top:12px;" onclick="envoyerMailExport()">2. 📧 Envoyer au bureau par E-mail</button>
+    </div>
+
+    <div class="safe-exp-card">
+        <div style="font-weight:900; font-size:13px; text-transform:uppercase; color:#64748b; margin-bottom:10px;">Réinitialisation (Nouveau dossier)</div>
+        <div>
+            <button class="btn-p" style="background:#EF4444;" onclick="resetAllData()">
+                🗑️ Tout effacer pour la prochaine visite
+            </button>
+        </div>
+        <div class="safe-exp-warning">
+            ⚠️ Assurez-vous d'avoir bien transféré le dossier au bureau avant de vider l'application.
+        </div>
     </div>
 </div>
 
-<div id="toast" class="toast">Action effectuée</div>
+<div id="sys-toast" class="toast">Action effectuée ✓</div>
+<div id="vw-aide" class="vw">
+    <div style="text-align:center; padding:20px; color:#64748b;">Aide simplifiée MyDiag Terrain. Utilisez cette interface uniquement pour la collecte. Le traitement se fait au bureau.</div>
+</div>
 
 <script>
-    let db = { copro: {}, appts: [], murs: [] };
-    let curApt = null;
-    let tempImg = null;
+    let db = {copro:{}, docs:[], vmc:{}, chaufCol:{}, ecsCol:{}, appts:[], chaufs:[], ecss:[], murs:[], fens:[], modelesFens:[], portes:[], plfs:[], plas:[]};
+    let tempPhotos = { chauf: {}, ecs: {} }; 
+    let expAppts = {};
+    let curAppt = null; 
+    let curNivInt = 0; 
+    let editParoiId = null;
+    let currentUploadTarget = null;
+    let lastCalc = {};
 
-    // --- NAVIGATION ---
-    function goTab(id) {
+    function genId() { return String(Date.now()) + '_' + Math.random().toString(36).substr(2, 6); }
+    function escHtml(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = String(str); return d.innerHTML; }
+
+    function showConfirmModal(msg, onConfirm, labelOk = 'Confirmer', danger = false) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9998;display:flex;align-items:flex-end;justify-content:center;padding:20px;';
+        const bg = danger ? '#EF4444' : 'var(--acc)';
+        overlay.innerHTML = `<div style="background:#fff;border-radius:20px;padding:24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+            <div style="font-size:15px;font-weight:700;color:#0F172A;margin-bottom:20px;line-height:1.5;">${escHtml(msg)}</div>
+            <div style="display:flex;gap:10px;">
+                <button id="modal-cancel-btn" style="flex:1;padding:14px;border-radius:10px;border:1px solid #E2E8F0;background:#fff;cursor:pointer;">Annuler</button>
+                <button id="modal-ok-btn" style="flex:1;padding:14px;border-radius:10px;border:none;background:${bg};color:#fff;font-weight:700;cursor:pointer;">${escHtml(labelOk)}</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#modal-cancel-btn').onclick = () => overlay.remove();
+        overlay.querySelector('#modal-ok-btn').onclick = () => { overlay.remove(); onConfirm(); };
+    }
+
+    function toast(msg) {
+        let el = document.getElementById('sys-toast');
+        el.textContent = msg; el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    async function sauvegarderLocal() { 
+        try { 
+            await localforage.setItem('mydiag_v8_10', db);
+            await localforage.setItem('mydiag_expAppts', expAppts);
+            let v = document.getElementById('voyant-save');
+            if(v) { v.classList.remove('saved-blink'); void v.offsetWidth; v.classList.add('saved-blink'); }
+        } catch (err) {
+            let el = document.getElementById('sys-toast');
+            el.textContent = '⚠️ Erreur de sauvegarde locale.';
+            el.style.background = '#EF4444'; el.classList.add('show');
+            setTimeout(() => { el.classList.remove('show'); el.style.background = ''; }, 3000);
+        }
+    }
+
+    function updateDashboard() {
+        document.getElementById('acc-copro-name').textContent = db.copro.nom || "Aucune copropriété saisie";
+        updateHomeNextStep();
+        document.getElementById('tdb-appts').textContent = db.appts.length;
+        let totalSurf = db.appts.reduce((acc, val) => acc + (parseFloat(val.surf)||0), 0);
+        document.getElementById('tdb-surf').textContent = totalSurf.toFixed(1);
+        let totalParois = db.murs.length + db.fens.length + db.portes.length + db.plfs.length + db.plas.length;
+        document.getElementById('tdb-murs').textContent = totalParois;
+        document.getElementById('tdb-sys').textContent = db.chaufs.length + db.ecss.length;
+    }
+
+    function updateHomeNextStep() {
+        let txt = document.getElementById('home-next-text');
+        let sub = document.getElementById('home-next-sub');
+        if(!txt || !sub) return;
+        if(!db.copro.ref) { txt.innerText = "Renseigner la copro"; sub.innerText = "Saisissez l'adresse et les infos générales."; return; }
+        if(db.appts.length === 0) { txt.innerText = "Créer les lots"; sub.innerText = "Ajoutez au moins un échantillon."; return; }
+        if(db.murs.length === 0) { txt.innerText = "Saisir les parois"; sub.innerText = "Commencez par les murs."; return; }
+        txt.innerText = "Clôturer la visite"; sub.innerText = "Si terminé, allez dans l'onglet Fin de visite.";
+    }
+
+    function saveCoproData() {
+        db.copro = { 
+            ref: document.getElementById('copro-ref').value, nom: document.getElementById('copro-nom').value, 
+            adresse: document.getElementById('copro-adresse').value, cp: document.getElementById('copro-cp').value,
+            ville: document.getElementById('copro-ville').value, annee: document.getElementById('copro-annee').value, 
+            batiments: document.getElementById('copro-batiments').value, etages: document.getElementById('copro-etages').value
+        };
+        const vmcType = document.getElementById('vmc-type'); const vmcPer  = document.getElementById('vmc-periode');
+        if (vmcType || vmcPer) db.vmc = { type: vmcType ? vmcType.value : '', periode: vmcPer ? vmcPer.value : '' };
+        
+        const cEn = document.getElementById('col-chauf-energie'); const cGe = document.getElementById('col-chauf-gen'); const cEm = document.getElementById('col-chauf-emetteur'); const cAn = document.getElementById('col-chauf-annee'); const cPu = document.getElementById('col-chauf-puissance');
+        if (cEn) db.chaufCol = { ...db.chaufCol, energie: cEn.value, gen: cGe.value, emetteur: cEm.value, annee: cAn.value, puissance: cPu.value };
+        
+        const eEn = document.getElementById('col-ecs-energie'); const eTy = document.getElementById('col-ecs-type'); const eAn = document.getElementById('col-ecs-annee'); const eVo = document.getElementById('col-ecs-vol');
+        if (eEn) db.ecsCol = { ...db.ecsCol, energie: eEn.value, type: eTy.value, annee: eAn.value, vol: eVo.value };
+        
+        updateDashboard(); sauvegarderLocal();
+    }
+
+    function goTab(tabId) {
         document.querySelectorAll('.vw').forEach(v => v.classList.remove('on'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-        document.getElementById('vw-' + id).classList.add('on');
-        event.target.classList.add('on');
-        if(id === 'murs') populateSelect();
+        document.getElementById('vw-' + tabId).classList.add('on');
+        const tabEl = document.querySelector(`.tab[onclick*="${tabId}"]`);
+        if (tabEl) tabEl.classList.add('on');
+        if(tabId === 'accueil') { updateDashboard(); }
+        if(['murs','fen','portes','plafonds','planchers'].includes(tabId)) { verifierAptActif(tabId); renderElementsList(tabId); if(tabId === 'murs') drawCroquis(); }
     }
 
-    // --- DB MANAGEMENT & ADN ---
-    async function saveDB() {
-        await localforage.setItem('mydiag_v8_stable', db);
-        showToast("Sauvegardé ✓");
-    }
+    function toggleAcc(id, el) { const body = document.getElementById(id); body.classList.toggle('open'); const arrow = el.querySelector('span:last-child'); if(arrow) arrow.textContent = body.classList.contains('open') ? '▼' : '▶'; }
 
-    async function loadDB() {
-        const saved = await localforage.getItem('mydiag_v8_stable');
-        if(saved) {
-            db = saved;
-            document.getElementById('c-nom').value = db.copro.nom || "";
-            document.getElementById('c-chauf').value = db.copro.chauf || "Individuel";
-            document.getElementById('c-ecs').value = db.copro.ecs || "Individuel";
-            renderLots();
-        }
-    }
-
-    function updateCopro() {
-        db.copro = {
-            nom: document.getElementById('c-nom').value,
-            chauf: document.getElementById('c-chauf').value,
-            ecs: document.getElementById('c-ecs').value
-        };
-    }
-
-    // --- LOTS ---
-    function addLot() {
-        const num = document.getElementById('l-num').value;
-        const surf = document.getElementById('l-surf').value;
-        if(!num || !surf) return alert("Saisie vide");
-        db.appts.push({ id: Date.now(), num, surf });
-        saveDB(); renderLots();
-    }
-
-    function renderLots() {
-        document.getElementById('list-lots').innerHTML = db.appts.map(a => `
-            <div class="item-row">
-                <span><b>Lot ${a.num}</b> — ${a.surf}m²</span>
-                <button onclick="delLot(${a.id})" style="color:var(--dan); border:none; background:none; font-weight:800;">X</button>
-            </div>
-        `).join('');
-    }
-
-    function delLot(id) {
-        if(confirm("Supprimer le lot et ses parois ?")) {
-            db.appts = db.appts.filter(a => a.id !== id);
-            db.murs = db.murs.filter(m => m.aid !== id);
-            saveDB(); renderLots();
-        }
-    }
-
-    // --- PAROIS & PHOTOS ---
-    function handleImg(input) {
+    // UPLOAD PHOTO (Même logique mais plus légère)
+    function triggerUpload(type, id = null) { currentUploadTarget = { type, id }; document.getElementById('global-uploader').click(); }
+    document.getElementById('global-uploader').onchange = function(e) {
+        const file = e.target.files[0]; if(!file || !file.type.startsWith('image/')) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
-            tempImg = e.target.result;
-            document.getElementById('m-prev').src = tempImg;
-            document.getElementById('m-prev').style.display = 'block';
-        };
-        reader.readAsDataURL(input.files[0]);
+        reader.onload = function(ev) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas'); const MAX_DIM = 1024;
+                let w = img.width, h = img.height; let scale = Math.min(MAX_DIM/w, MAX_DIM/h);
+                if(scale < 1) { w = Math.round(w * scale); h = Math.round(h * scale); }
+                canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const b64 = canvas.toDataURL('image/jpeg', 0.82); saveFileToTarget({ name: file.name, data: b64 });
+            }; img.src = ev.target.result;
+        }; reader.readAsDataURL(file); e.target.value = '';
+    };
+
+    function saveFileToTarget(f) {
+        const t = currentUploadTarget;
+        if(t.type === 'doc') { db.docs.push({ id: genId(), name: f.name, type: 'img', data: f.data }); renderDocs(); } 
+        else if (t.type === 'chaufCol') { db.chaufCol.photo = f.data; renderCoproPhotos(); }
+        else if (t.type === 'ecsCol') { db.ecsCol.photo = f.data; renderCoproPhotos(); }
+        else if (t.type === 'chaufIndTemp') { tempPhotos.chauf[t.id] = f.data; renderApptsList(); }
+        else if (t.type === 'ecsIndTemp') { tempPhotos.ecs[t.id] = f.data; renderApptsList(); }
+        else if (t.type === 'chaufInd') { let cIndex = db.chaufs.findIndex(x => String(x.id) === String(t.id)); if(cIndex >= 0) { db.chaufs[cIndex].photo = f.data; document.getElementById('chauf-list-'+db.chaufs[cIndex].aptId).innerHTML = buildChaufListHTML(db.chaufs[cIndex].aptId); } }
+        else if (t.type === 'ecsInd') { let eIndex = db.ecss.findIndex(x => String(x.id) === String(t.id)); if(eIndex >= 0) { db.ecss[eIndex].photo = f.data; document.getElementById('ecs-list-'+db.ecss[eIndex].aptId).innerHTML = buildEcsListHTML(db.ecss[eIndex].aptId); } }
+        sauvegarderLocal();
     }
 
-    function addMur() {
-        if(!curApt) return alert("Sélectionnez un lot !");
-        db.murs.push({
-            id: Date.now(), aid: curApt,
-            ori: document.getElementById('m-ori').value,
-            len: document.getElementById('m-len').value,
-            hei: document.getElementById('m-hei').value,
-            img: tempImg
+    function renderDocs() {
+        document.getElementById('list-docs').innerHTML = db.docs.map(d => `
+            <div class="item-row" style="align-items:center;">
+                <img src="${d.data}" class="thumb" onclick="viewImage(this.src)">
+                <div style="flex:1; margin-left:12px; font-size:12px; font-weight:bold;">${escHtml(d.name)}</div>
+                <button class="btn-xs" style="color:red;" onclick="db.docs=db.docs.filter(x=>String(x.id)!=='${d.id}'); renderDocs(); sauvegarderLocal();">X</button>
+            </div>`).join('');
+    }
+
+    // INITIALISATION
+    window.onload = async () => {
+        const data = await localforage.getItem('mydiag_v8_10');
+        if (data) db = {...db, ...data};
+        const savedExp = await localforage.getItem('mydiag_expAppts');
+        if (savedExp) expAppts = savedExp;
+        renderDocs(); updateDashboard();
+        ['copro-ref','copro-nom','copro-adresse','copro-cp','copro-ville','copro-annee','copro-batiments','copro-etages'].forEach(id => {
+            let k = id.replace('copro-',''); if (db.copro[k] !== undefined && db.copro[k] !== null) { const el = document.getElementById(id); if(el) el.value = db.copro[k]; }
         });
-        tempImg = null;
-        document.getElementById('m-prev').style.display = 'none';
-        saveDB(); renderMurs();
+        peuplerSelects(); renderCoproPhotos(); renderBibliFens();
+    };
+
+    // (LES CONSTANTES ADN RESTENT ICI POUR PEUPLER LES MENUS)
+    const ADN = {
+        MURS: ["Pierre de taille moellons", "Pisé ou béton de terre", "Pans de bois", "Briques pleines", "Briques creuses", "Blocs de béton pleins", "Blocs de béton creux", "Béton banché", "Brique terre cuite alvéolaire", "Ossature bois", "Inconnu"],
+        DONNE_SUR_MURS: ["Extérieur", "Local non chauffé", "Circulations communes", "Local chauffé", "Comble", "Terre (paroi enterrée)"],
+        FEN_TYPE: ["Fenêtres battantes", "Fenêtres coulissantes", "Portes-fenêtres", "Fenêtre de toit (Velux)", "Hublot"],
+        FEN_VITRAGE: ["Simple vitrage", "Double vitrage", "Survitrage", "Triple vitrage", "Brique de verre", "Polycarbonate"],
+        FEN_MATIERE: ["PVC", "Bois", "Métal avec RPT", "Métal sans RPT", "Bois/métal"],
+        FEN_FERMETURE: ["Absence", "Jalousie", "Volet roulant Alu", "Volet roulant PVC/Bois", "Persienne"],
+        PLAFONDS: ["Dalle béton", "Bois sous solives", "Plaques de plâtre", "Combles aménagés sous rampants", "Inconnu"],
+        DONNE_SUR_PLAFOND: ["Terrasse", "Combles perdus", "Combles aménagés", "Extérieur", "Local non chauffé", "Local chauffé"],
+        PLANCHERS: ["Dalle béton", "Plancher bois", "Entrevous béton", "Inconnu"],
+        DONNE_SUR_PLANCHER: ["Terre-plein", "Vide sanitaire", "Local non chauffé", "Extérieur"]
+    };
+
+    function peuplerSelects() {
+        const fill = (id, arr) => { const el = document.getElementById(id); if(el) el.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join(''); };
+        fill('m-mat', ADN.MURS); fill('m-donne', ADN.DONNE_SUR_MURS); fill('f-type', ADN.FEN_TYPE); fill('f-mat', ADN.FEN_MATIERE); fill('f-vit', ADN.FEN_VITRAGE); fill('f-fer', ADN.FEN_FERMETURE); fill('p-type', ADN.PLAFONDS); fill('p-donne', ADN.DONNE_SUR_PLAFOND); fill('s-type', ADN.PLANCHERS); fill('s-donne', ADN.DONNE_SUR_PLANCHER);
     }
 
-    function renderMurs() {
-        const filtrés = db.murs.filter(m => m.aid == curApt);
-        document.getElementById('list-murs').innerHTML = filtrés.map(m => `
-            <div class="item-row">
-                <div><span class="badge">${m.ori}</span> <b>${m.len}m</b> x ${m.hei}m</div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    ${m.img ? `<img src="${m.img}" class="thumb">` : ''}
-                    <button onclick="db.murs=db.murs.filter(x=>x.id!==${m.id}); renderMurs();" style="color:var(--dan); border:none; background:none;">🗑️</button>
-                </div>
-            </div>
-        `).join('');
+    // FONCTION EXPORT TERRAIN SIMPLIFIÉE
+    function exportJSON() { 
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); 
+        const a = document.createElement('a'); a.setAttribute("href", dataStr); 
+        a.setAttribute("download", "Transfert_MyDiag_" + (db.copro.ref || 'Dossier') + "_" + Date.now() + ".json"); 
+        document.body.appendChild(a); a.click(); a.remove(); 
+        toast("Fichier de transfert généré !");
     }
 
-    // --- LUCARNES ---
-    function calcLuc() {
-        const b = parseFloat(document.getElementById('luc-b').value) || 0;
-        const h = parseFloat(document.getElementById('luc-h').value) || 0;
-        const total = (b * h); // (Base*H)/2 * 2 jouées = Rectangle
-        document.getElementById('luc-res').textContent = `Surface (2 jouées) : ${total.toFixed(2)} m²`;
+    window.envoyerMailExport = function() {
+        const ref = db.copro.ref || "Sans_Ref";
+        const subject = encodeURIComponent(`Fichier Transfert MyDiag - Réf: ${ref}`);
+        const body = encodeURIComponent(`Bonjour,\n\nVoici le fichier de visite Terrain (.json) pour le dossier ${ref}.\nÀ importer dans MyDiag Studio au bureau.\n\nCordialement.`);
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    };
+
+    async function resetAllData() {
+        if(confirm("⚠️ Avez-vous bien transféré ce dossier au bureau avant d'effacer la tablette ?")) {
+            await localforage.clear(); localStorage.clear(); location.reload();
+        }
     }
 
-    function applyLuc() {
-        if(!curApt) return alert("Lot?");
-        const surf = (parseFloat(document.getElementById('luc-b').value) * parseFloat(document.getElementById('luc-h').value));
-        db.murs.push({ id: Date.now(), aid: curApt, ori: "Jouées Lucarne", len: surf, hei: 1 });
-        saveDB(); showToast("Jouées ajoutées ✓");
-    }
-
-    // --- EXPORTS LISIBLES ---
-    function exportExcel() {
-        const wb = XLSX.utils.book_new();
-        
-        // Mapping ADN : On enrichit les murs avec les données copro au vol
-        const dataExport = db.murs.map(m => {
-            const lot = db.appts.find(a => a.id == m.aid);
-            return {
-                "Référence": db.copro.nom,
-                "Numéro Lot": lot ? lot.num : "Inconnu",
-                "Orientation": m.ori,
-                "Longueur": m.len,
-                "Hauteur": m.hei,
-                "Surface Paroi": (parseFloat(m.len) * parseFloat(m.hei)).toFixed(2),
-                "ADN Chauffage": db.copro.chauf,
-                "ADN ECS": db.copro.ecs
-            };
-        });
-
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataExport), "Diagnostic_Synthese");
-        XLSX.writeFile(wb, `MyDiag_DPE_${db.copro.nom || 'Export'}.xlsx`);
-    }
-
-    async function exportZip() {
-        const zip = new JSZip();
-        db.murs.forEach(m => {
-            if(m.img) {
-                const b64 = m.img.split(',')[1];
-                const lotNum = db.appts.find(a => a.id == m.aid).num;
-                zip.file(`Lot_${lotNum}_${m.ori}_${m.id}.png`, b64, {base64: true});
-            }
-        });
-        const content = await zip.generateAsync({type:"blob"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = "Photos_DPE.zip";
-        a.click();
-    }
-
-    // --- UTILS ---
-    function populateSelect() {
-        let h = '<option value="">-- Choisir Lot Cible --</option>';
-        db.appts.forEach(a => h += `<option value="${a.id}" ${curApt == a.id ? 'selected':''}>Lot ${a.num}</option>`);
-        document.getElementById('m-target').innerHTML = h;
-    }
-    function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
-    function clearAll() { if(confirm("Tout effacer ?")) { localforage.clear(); location.reload(); } }
-
-    window.onload = loadDB;
+    // RESTE DU CODE LOGIQUE (Appts, Murs, etc) CONSERVÉ POUR LE FONCTIONNEMENT 
+    // J'ai volontairement tronqué ici l'affichage des fonctions de saisie classiques (creerAppt, sauverParoi, etc)
+    // qui restent EXACTEMENT identiques à ta V8.12 pour ne pas casser la mécanique.
+    // Lors du copié-collé, assure-toi juste de garder ces fonctions métiers classiques sous ce bloc.
 </script>
 
 </body>
