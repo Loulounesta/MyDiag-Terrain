@@ -21,7 +21,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--tx); padding-bottom: 100px; -webkit-font-smoothing: antialiased; }
 
-        /* HEADER */
         .hd { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         .hd-title { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px;}
         .btn-save { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(5px); }
@@ -30,7 +29,6 @@
         @keyframes blinkGreen { 0% { background-color: #16A34A; box-shadow: 0 0 12px #16A34A; } 100% { background-color: #475569; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); } }
         .saved-blink { animation: blinkGreen 1s ease-out; }
 
-        /* TABS */
         .tabs { background: #0F172A; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; position: sticky; top: 52px; z-index: 19; padding: 10px 16px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .tabs::-webkit-scrollbar { display: none; }
         .tab { flex: 0 0 auto; padding: 8px 16px; font-size: 13px; font-weight: 600; color: #94A3B8; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.2s; background: rgba(255,255,255,0.05); }
@@ -52,18 +50,14 @@
 
         .btn-p { background: var(--acc); color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,0.25); padding: 16px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; width: 100%; margin-top: 10px; transition: 0.2s; }
         .btn-xs { padding: 10px 14px; font-size: 12px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s;}
-        .qbtn { padding: 8px 10px; font-size: 12px; border-radius: 8px; font-weight: 700; border: 1px solid var(--bor); background: #fff; cursor: pointer; transition: 0.2s; color: var(--tx2); text-align: center; }
+        .qbtn { padding: 8px 10px; font-size: 12px; border-radius: 8px; font-weight: 700; border: 1px solid var(--bor); background: #F8FAFC; cursor: pointer; transition: 0.2s; color: var(--tx); text-align: center; white-space:nowrap; }
+        .qbtn:active { background: var(--bor); }
         
         .item-row { background: var(--sur); border-radius: 12px; border: 1px solid var(--bor); padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; box-shadow: 0 2px 8px rgba(0,0,0,0.02);}
-        .badge { background: #F1F5F9; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-right: 8px; color: #475569;}
-        .badge-elem { background: #F1F5F9; color: #475569; padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-block; margin-top: 6px; border: 1px solid var(--bor);}
-        .badge-ok { background: var(--ok-l); color: var(--ok); border-color: #BBF7D0; }
-        .badge-warn { background: var(--warn-l); color: var(--warn); border-color: #FDE68A; }        
         
         .canvas-container { background:var(--sur); border: 1px solid var(--bor); border-radius: var(--r); padding:16px; margin-bottom:20px; box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
         #croquis-canvas { width: 100%; height: 260px; background: #F8FAFC; border-radius: 12px; border: 2px dashed #E2E8F0; margin-top: 12px;}
         
-        .thumb { height: 44px; width: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--bor); cursor: pointer; background: #fff;}
         .toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: #0F172A; color: #fff; padding: 14px 28px; border-radius: 30px; font-size: 14px; font-weight: 700; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 9999; box-shadow: 0 10px 30px rgba(15,23,42,0.3); text-align:center; white-space: nowrap;}
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
         
@@ -71,17 +65,13 @@
         .dim-inputs { display:flex; gap:8px; align-items: center; }
         .dim-inputs input { flex:1; min-width: 0; background:#F8FAFC; border:1px solid var(--bor); border-radius:10px; padding:12px 6px; font-size:16px; text-align:center; font-weight:800; color:var(--acc); }
 
-        .niv-btn { flex:1; padding:12px; border:none; border-radius:10px; font-weight:800; font-size:13px; transition:0.2s; cursor:pointer;}
-        .niv-on { background:var(--tx); color:#fff; }
-        .niv-off { background:var(--sur); color:var(--tx2); border:1px solid var(--bor);}
-
         .coll-acc-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--sur); border-radius: var(--r); border: 1px solid var(--bor); margin-top: 12px; cursor: pointer; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(15,23,42,0.02); transition:0.2s;}
         .coll-acc-body { display: none; margin-top: 8px; }
         .coll-acc-body.open { display: block; animation: fadeIn 0.2s ease-in-out; }
         
-        .appt-target-sel { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #CBD5E1; font-weight: 800; color: var(--tx); background: var(--sur); margin-bottom: 16px; font-size: 14px; outline:none;}
+        .appt-target-sel { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #CBD5E1; font-weight: 800; color: var(--tx); background: var(--sur); margin-bottom: 0; font-size: 14px; outline:none;}
         
-        /* === SAFE UX PATCHES (RÉDUITS) === */
+        /* SAFE UX PATCHES */
         .safe-home-hero, .safe-exp-hero { background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color:white; padding:24px; border-radius:24px; box-shadow:0 12px 32px rgba(15,23,42,0.18); margin-bottom:16px; position:relative; overflow:hidden;}
         .safe-home-title, .safe-exp-title { font-size:24px; font-weight:900; letter-spacing:-0.6px; margin-bottom:6px; position:relative; z-index:1; }
         .safe-home-sub, .safe-exp-sub { font-size:14px; color:#CBD5E1; font-weight:600; position:relative; z-index:1; }
@@ -95,38 +85,27 @@
         .safe-home-next-text { font-size:14px; color:var(--tx); font-weight:700; line-height:1.5; }
         .safe-home-next-sub { margin-top:6px; font-size:13px; color:var(--tx2); line-height:1.5; }
         
-        .safe-section-title { font-size:12px; font-weight:900; letter-spacing:1px; color:#64748b; text-transform:uppercase; margin:0 0 10px 4px; }
         .safe-context-card { background:linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%); border:1px solid #BFDBFE; border-radius:var(--r); padding:16px; margin-bottom:16px; }
         .safe-context-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
         .safe-context-title { font-size:16px; font-weight:900; color:var(--tx); letter-spacing:-0.3px; }
-        .safe-context-sub { font-size:12px; color:var(--tx2); font-weight:600; }
         .safe-mini-badge { display:inline-flex; align-items:center; gap:6px; background:#DBEAFE; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:800; white-space:nowrap; }
         
         .safe-subcard { background:#fff; border:1px solid var(--bor); border-radius:14px; overflow:hidden; margin-bottom:14px; }
         .safe-subhead { padding:12px 16px; background:#F8FAFC; border-bottom:1px solid var(--bor); font-size:12px; font-weight:900; color:var(--tx2); text-transform:uppercase; }
-        .safe-subhint { display:block; margin-top:4px; font-size:11px; font-weight:600; color:#94A3B8; text-transform:none; }
         
         .safe-exp-card { background:#fff; border:1px solid var(--bor); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 6px 18px rgba(15,23,42,0.04); }
-        .safe-exp-head { font-size:13px; font-weight:900; text-transform:uppercase; color:#64748b; margin-bottom:10px; }
         .safe-exp-warning { font-size:12px; color:#B45309; background:#FFFBEB; border:1px solid #FDE68A; padding:10px; border-radius:10px; margin-top:10px; }
-        
-        #f-bibli-container{ display:flex; overflow-x:auto; gap:10px; padding-bottom:6px; padding:14px; }
-        #f-bibli-container::-webkit-scrollbar{ height:6px; }
-        #f-bibli-container::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:999px; }
+
+        /* MODAL DE CRÉATION DE LOT FLOTTANTE */
+        #modal-new-apt { display:none; position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:9999; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px); }
+        .modal-content { background:var(--bg); border-radius:24px; width:100%; max-width:500px; padding:20px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.4); animation: fadeIn 0.2s ease-out; }
     </style>
 </head>
 <body>
 
-<div id="img-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.95); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(5px);" onclick="this.style.display='none'">
-    <img id="img-viewer-src" style="max-width:95%; max-height:95%; border-radius:12px;" />
-</div>
-
-<input type="file" id="global-uploader" style="display:none;" accept="image/*" capture="environment">
-
 <div class="hd">
     <div class="hd-title">
-        <span style="font-size:22px;">📱</span>
-        MyDiag <span style="font-size:12px; color:#38BDF8; font-weight:800; margin-left:4px;">TERRAIN</span>
+        <span style="font-size:22px;">📱</span> MyDiag <span style="font-size:12px; color:#38BDF8; font-weight:800; margin-left:4px;">TERRAIN</span>
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
         <div id="voyant-save" style="width:12px; height:12px; border-radius:50%; background-color:#475569; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></div>
@@ -144,102 +123,11 @@
     <div class="tab" onclick="goTab('plafonds')">🔝 Plafonds</div>
     <div class="tab" onclick="goTab('planchers')">🔽 Planchers</div>
     <div class="tab" style="color:#38BDF8; font-weight:800;" onclick="goTab('export')">🚀 Fin de visite</div>
-    <div class="tab" onclick="goTab('aide')">❓ Aide</div>
 </div>
 
-<div id="vw-accueil" class="vw on">
-    <div class="safe-home-hero">
-        <div class="safe-home-title">Synthèse de visite</div>
-        <div id="acc-copro-name" class="safe-home-sub">Aucune copropriété saisie</div>
-
-        <div class="safe-home-kpis">
-            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-appts">0</div><div class="safe-home-kpi-lbl">Lots</div></div>
-            <div class="safe-home-kpi"><div class="safe-home-kpi-num accent" id="tdb-surf">0</div><div class="safe-home-kpi-lbl">m² total</div></div>
-            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-murs">0</div><div class="safe-home-kpi-lbl">Parois</div></div>
-            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-sys">0</div><div class="safe-home-kpi-lbl">Systèmes</div></div>
-        </div>
-    </div>
-
-    <div class="safe-home-next">
-        <div class="safe-home-next-title">Prochaine action</div>
-        <div id="home-next-text" class="safe-home-next-text"></div>
-        <div id="home-next-sub" class="safe-home-next-sub"></div>
-    </div>    
-    <button class="btn-p" onclick="goTab('copro')">Continuer la visite ➡️</button>
-</div>
-
-<div id="vw-copro" class="vw">
-    <div class="sl">Identification</div>
-    <div class="card">
-        <div class="fr"><span class="fl">Référence</span><input type="text" inputmode="numeric" id="copro-ref" placeholder="N° dossier" oninput="saveCoproData()"></div>
-        <div class="fr"><span class="fl">Nom Copro</span><input type="text" id="copro-nom" placeholder="ex: Les Lilas" oninput="saveCoproData()"></div>
-        <div class="fr"><span class="fl">Adresse</span><input type="text" id="copro-adresse" placeholder="Rue et numéro" oninput="saveCoproData()"></div>
-        <div class="fr"><span class="fl">Code Postal</span><input type="text" inputmode="numeric" id="copro-cp" placeholder="ex: 75000" oninput="saveCoproData()"></div>
-        <div class="fr"><span class="fl">Ville</span><input type="text" id="copro-ville" placeholder="Ville" oninput="saveCoproData()"></div>        
-        <div class="fr"><span class="fl">Année constr.</span><input type="number" inputmode="numeric" id="copro-annee" placeholder="ex: 1975" oninput="saveCoproData()"></div>
-        <div class="fr"><span class="fl">Nb bâtiments</span><input type="number" inputmode="numeric" id="copro-batiments" placeholder="ex: 3" oninput="saveCoproData(); updateBatimentOptions('apt-bat');"></div>
-        <div class="fr"><span class="fl">Nb d'étages</span><input type="number" inputmode="numeric" id="copro-etages" placeholder="ex: 4" oninput="saveCoproData(); updateEtageOptions('apt-etage');"></div>
-    </div>
-
-    <div class="coll-acc-hd" onclick="toggleAcc('docs-acc', this)"><span>📂 Documents & Photos</span> <span style="color:var(--acc);">▼</span></div>
-    <div class="coll-acc-body" id="docs-acc">
-        <div class="card">
-            <button class="btn-p" style="margin:16px; width:calc(100% - 32px); background:var(--acc-l); color:var(--acc);" onclick="triggerUpload('doc')">📸 Ajouter une Photo Copro</button>
-            <div id="list-docs" style="padding: 0 16px 16px;"></div>
-        </div>
-    </div>
-
-    <div class="coll-acc-hd" onclick="toggleAcc('vmc-acc', this)"><span>🌀 Ventilation collective</span> <span style="color:var(--acc);">▼</span></div>
-    <div class="coll-acc-body" id="vmc-acc">
-        <div class="card">
-            <div class="fr"><span class="fl">Type</span><select id="vmc-type" onchange="saveCoproData()"><option value="">—</option><option>VMC simple flux Hygro</option><option>VMC Basse pression</option><option>VMC Auto-réglable</option><option>Ventilation naturelle</option></select></div>
-            <div class="fr"><span class="fl">Période</span><select id="vmc-periode" onchange="saveCoproData()"><option value="">—</option><option>Avant 1982</option><option>1982 – 2000</option><option>2001 – 2012</option><option>Après 2012</option></select></div>
-        </div>
-    </div>
-
-    <div class="coll-acc-hd" onclick="toggleAcc('chauf-acc', this)"><span>🔥 Chauffage collectif</span> <span style="color:var(--acc);">▼</span></div>
-    <div class="coll-acc-body" id="chauf-acc">
-        <div class="card">
-            <div class="fr">
-                <span class="fl">Énergie</span>
-                <select id="col-chauf-energie" onchange="updateChaufGen('col-chauf-energie', 'col-chauf-gen', 'col-chauf-emetteur'); saveCoproData()" style="min-width:0; flex:1;">
-                    <option value="">—</option><option>Electrique</option><option>Gaz naturel</option><option>GPL</option><option>Fioul</option><option>Bois</option><option>Réseau de chaleur</option>
-                </select>
-                <div style="display:flex; align-items:center; gap:8px; margin-left:10px;">
-                    <img id="img-chaufCol" class="thumb" style="display:none; width:34px; height:34px; margin:0;" onclick="viewImage(this.src)" />
-                    <button class="btn-xs" style="background:var(--acc-l); color:var(--acc); border:1px solid #BFDBFE; padding:8px 12px;" onclick="triggerUpload('chaufCol')">📷</button>
-                </div>
-            </div>
-            <div class="fr"><span class="fl">Générateur</span><select id="col-chauf-gen" onchange="checkChaudiereECS('col'); saveCoproData()"><option value="">—</option></select></div>
-            <div class="fr"><span class="fl">Émetteur</span><select id="col-chauf-emetteur" onchange="saveCoproData()"><option value="">—</option></select></div>
-            <div class="fr"><span class="fl">Année</span><input type="number" inputmode="numeric" id="col-chauf-annee" oninput="saveCoproData()"></div>
-            <div class="fr"><span class="fl">Puiss. (kW)</span><input type="number" inputmode="decimal" id="col-chauf-puissance" oninput="saveCoproData()"></div>
-        </div>
-    </div>
-
-    <div class="coll-acc-hd" onclick="toggleAcc('ecs-acc', this)"><span>🚿 ECS collective</span> <span style="color:var(--acc);">▼</span></div>
-    <div class="coll-acc-body" id="ecs-acc">
-        <div class="card">
-            <div class="fr">
-                <span class="fl">Énergie</span>
-                <select id="col-ecs-energie" onchange="updateEcsGen('col-ecs-energie', 'col-ecs-type'); saveCoproData()" style="min-width:0; flex:1;">
-                    <option value="">—</option><option>Electrique</option><option>Gaz naturel</option><option>GPL</option><option>Fioul</option><option>Bois</option><option>Réseau de chaleur</option>
-                </select>
-                <div style="display:flex; align-items:center; gap:8px; margin-left:10px;">
-                    <img id="img-ecsCol" class="thumb" style="display:none; width:34px; height:34px; margin:0;" onclick="viewImage(this.src)" />
-                    <button class="btn-xs" style="background:var(--acc-l); color:var(--acc); border:1px solid #BFDBFE; padding:8px 12px;" onclick="triggerUpload('ecsCol')">📷</button>
-                </div>
-            </div>
-            <div class="fr"><span class="fl">Type/Gén.</span><select id="col-ecs-type" onchange="saveCoproData()"><option value="">—</option></select></div>
-            <div class="fr"><span class="fl">Année</span><input type="number" inputmode="numeric" id="col-ecs-annee" oninput="saveCoproData()"></div>
-            <div class="fr"><span class="fl">Volume (L)</span><input type="number" inputmode="decimal" id="col-ecs-vol" oninput="saveCoproData()"></div>
-        </div>
-    </div>
-</div>
-
-<div id="vw-appts" class="vw">
-    <div id="new-apt-form" style="display: none; margin-bottom: 24px;">
-        <div class="sl">Créer un appartement</div>
+<div id="modal-new-apt">
+    <div class="modal-content">
+        <div class="sl" style="margin-top:0;">Création rapide d'un lot</div>
         <div class="card">
             <div class="fr"><span class="fl">N° échantillon</span><select id="apt-num" style="color:var(--acc); font-weight:800;"></select></div>
             <div class="fr"><span class="fl">Type de lot</span><select id="apt-type"><option value="1">Plain-pied</option><option value="2">Duplex</option><option value="3">Triplex</option></select></div>
@@ -251,10 +139,45 @@
         </div>
         <div style="display:flex; gap:10px;">
             <button class="btn-p" style="background:var(--tx2);" onclick="hideNouvelAppt()">Annuler</button>
-            <button class="btn-p" onclick="creerAppt()">Créer le lot</button>
+            <button class="btn-p" onclick="creerAppt()">Créer & Continuer</button>
         </div>
     </div>
+</div>
 
+<div id="vw-accueil" class="vw on">
+    <div class="safe-home-hero">
+        <div class="safe-home-title">Synthèse de visite</div>
+        <div id="acc-copro-name" class="safe-home-sub">Aucune copropriété saisie</div>
+        <div class="safe-home-kpis">
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-appts">0</div><div class="safe-home-kpi-lbl">Lots</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num accent" id="tdb-surf">0</div><div class="safe-home-kpi-lbl">m² total</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-murs">0</div><div class="safe-home-kpi-lbl">Parois</div></div>
+            <div class="safe-home-kpi"><div class="safe-home-kpi-num" id="tdb-sys">0</div><div class="safe-home-kpi-lbl">Systèmes</div></div>
+        </div>
+    </div>
+    <div class="safe-home-next">
+        <div class="safe-home-next-title">Prochaine action</div>
+        <div id="home-next-text" class="safe-home-next-text"></div>
+        <div id="home-next-sub" class="safe-home-next-sub"></div>
+    </div>    
+    <button class="btn-p" onclick="goTab('copro')">Continuer la visite ➡️</button>
+</div>
+
+<div id="vw-copro" class="vw">
+    <div class="sl">Identification</div>
+    <div class="card">
+        <div class="fr"><span class="fl">Référence</span><input type="text" id="copro-ref" placeholder="N° dossier" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Nom Copro</span><input type="text" id="copro-nom" placeholder="ex: Les Lilas" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Adresse</span><input type="text" id="copro-adresse" placeholder="Rue et numéro" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Code Postal</span><input type="text" inputmode="numeric" id="copro-cp" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Ville</span><input type="text" id="copro-ville" oninput="saveCoproData()"></div>        
+        <div class="fr"><span class="fl">Année constr.</span><input type="number" inputmode="numeric" id="copro-annee" oninput="saveCoproData()"></div>
+        <div class="fr"><span class="fl">Nb bâtiments</span><input type="number" inputmode="numeric" id="copro-batiments" oninput="saveCoproData(); updateBatimentOptions('apt-bat');"></div>
+        <div class="fr"><span class="fl">Nb d'étages</span><input type="number" inputmode="numeric" id="copro-etages" oninput="saveCoproData(); updateEtageOptions('apt-etage');"></div>
+    </div>
+</div>
+
+<div id="vw-appts" class="vw">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <span class="sl" style="margin:0; font-size:13px;" id="appts-count-lbl">0 appartement</span>
         <button class="btn-xs" style="background:var(--acc); color:#fff; padding:10px 16px; border-radius:20px;" onclick="showNouvelAppt()">+ Nouveau lot</button>
@@ -264,14 +187,13 @@
 
 <div id="vw-murs" class="vw">
     <div class="safe-context-card">
-        <div class="safe-context-head">
-            <div>
-                <div class="safe-context-title">Lot cible :</div>
-            </div>
-            <div class="safe-mini-badge">🧱 Murs</div>
+        <div class="safe-context-head"><div><div class="safe-context-title">Lot cible :</div></div><div class="safe-mini-badge">🧱 Murs</div></div>
+        
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <select id="murs-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'murs')"></select>
+            <button class="btn-xs" style="background:var(--tx); color:#fff; border-radius:12px; padding:0 16px; font-size:14px;" onclick="showNouvelAppt()">+ Lot</button>
         </div>
-        <select id="murs-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'murs')"></select>
-        <div id="murs-niv-container"></div>
+
     </div>
 
     <div class="coll-acc-hd" onclick="toggleAcc('calc-geometrique', this)" style="margin-bottom:12px;"><span>🧮 Calculette de surface</span> <span style="color:var(--acc);">▼</span></div>
@@ -286,42 +208,30 @@
             </div>
             
             <div id="calc-res" style="display:none; background:#F8FAFC; padding:12px; border-radius:8px; border:1px solid var(--bor); font-size:13px;">
-                <div style="font-size:11px; color:#64748b; margin-bottom:10px; text-transform:uppercase; font-weight:800; letter-spacing:0.5px;">Résultats des surfaces :</div>
-
+                <div style="font-size:11px; color:#64748b; margin-bottom:10px; text-transform:uppercase; font-weight:800; letter-spacing:0.5px;">Résultats :</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
-                    <span>Façade <span style="font-size:10px;color:var(--tx2); font-weight:bold;">(L × h)</span>:</span>
+                    <span>Façade <span style="font-size:10px;color:var(--tx2);"></span>:</span>
                     <div style="display:flex; align-items:center;"><b id="res-mur" style="margin-right:10px; font-size:14px;"></b> <button class="btn-xs" style="background:#E0E7FF; color:#4338CA; padding:6px 10px;" onclick="addCalc('mur')">➕ Mur</button></div>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
-                    <span>Pignon <span style="font-size:10px;color:var(--tx2); font-weight:bold;">(Face complète)</span>:</span>
+                    <span>Pignon <span style="font-size:10px;color:var(--tx2);"></span>:</span>
                     <div style="display:flex; align-items:center;"><b id="res-pig" style="margin-right:10px; font-size:14px;"></b> <button class="btn-xs" style="background:#E0E7FF; color:#4338CA; padding:6px 10px;" onclick="addCalc('pig')">➕ Mur</button></div>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
-                    <span>Rampant <span style="font-size:10px;color:var(--tx2); font-weight:bold;">(Toit incliné x1)</span>:</span>
+                    <span>Rampant <span style="font-size:10px;color:var(--tx2);"></span>:</span>
                     <div style="display:flex; align-items:center;"><b id="res-ramp" style="margin-right:10px; font-size:14px;"></b> <button class="btn-xs" style="background:#E0E7FF; color:#4338CA; padding:6px 10px;" onclick="addCalc('ramp')">➕ Plafond</button></div>
                 </div>
-
                 <div id="row-calc-plat" style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
-                    <span>Plafond plat <span style="font-size:10px;color:var(--tx2); font-weight:bold;">(Haut)</span>:</span>
+                    <span>Plafond plat <span style="font-size:10px;color:var(--tx2);"></span>:</span>
                     <div style="display:flex; align-items:center;"><b id="res-plat" style="margin-right:10px; font-size:14px;"></b> <button class="btn-xs" style="background:#E0E7FF; color:#4338CA; padding:6px 10px;" onclick="addCalc('plat')">➕ Plafond</button></div>
                 </div>
-
                 <hr style="border:0; border-top:1px solid var(--bor); margin:12px 0 10px;">
-
                 <div style="display:flex; justify-content:space-between; color:var(--ok); align-items:center;">
-                    <span style="font-weight:bold;">Surf. Habitable (≥1.80m):</span>
+                    <span style="font-weight:bold;">Surf. Habitable :</span>
                     <div style="display:flex; align-items:center;"><b id="res-shab" style="margin-right:10px; font-size:15px;"></b> <button class="btn-xs" style="background:var(--ok-l); color:var(--ok); border:1px solid #BBF7D0; padding:6px 10px;" onclick="applyHabSurface()">✔️ Appliquer</button></div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div id="croquis-container" class="canvas-container" style="display:none;">
-        <div style="font-size: 13px; font-weight: 800; color: var(--acc);">📐 Plan du niveau</div>
-        <canvas id="croquis-canvas" width="400" height="260"></canvas>
-        <div id="croquis-msg" style="text-align:center; font-size:13px; font-weight:600; margin-top:16px;"></div>
     </div>
 
     <div class="safe-subcard">
@@ -333,14 +243,10 @@
             <div class="fr"><span class="fl">Ép. (cm)</span><input type="number" inputmode="decimal" id="m-ep" placeholder="ex: 20"></div>
         </div>
     </div>
-
     <div class="safe-subcard" style="background:linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);">
         <div class="safe-subhead">Dimensions</div>
-        <div class="dim-block">
-            <div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="m-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="m-h" placeholder="H"></div>
-        </div>
+        <div class="dim-block"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="m-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="m-h" placeholder="H"></div></div>
     </div>
-
     <div class="safe-subcard">
         <div class="safe-subhead">Isolation</div>
         <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
@@ -349,59 +255,59 @@
         </div>
     </div>
 
-    <button class="btn-p" id="btn-save-murs" onclick="sauverParoi('murs')">Enregistrer ce mur</button>
+    <button class="btn-p" onclick="sauverParoi('murs')">Enregistrer ce mur</button>
     <div id="list-murs" style="margin-top:20px;"></div>
 </div>
 
 <div id="vw-fen" class="vw">
     <div class="safe-context-card">
         <div class="safe-context-head"><div><div class="safe-context-title">Lot cible :</div></div><div class="safe-mini-badge">🪟 Fenêtres</div></div>
-        <select id="fen-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'fen')"></select>
-        <div id="fen-niv-container"></div>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <select id="fen-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'fen')"></select>
+            <button class="btn-xs" style="background:var(--tx); color:#fff; border-radius:12px; padding:0 16px; font-size:14px;" onclick="showNouvelAppt()">+ Lot</button>
+        </div>
     </div>
-
-    <div class="safe-subcard"><div id="f-bibli-container"></div></div>
-
     <div class="safe-subcard">
         <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
             <div class="fr"><span class="fl">Orientation</span><select id="f-ori"><option>Nord</option><option>Est</option><option>Sud</option><option>Ouest</option></select></div>
-            <div class="fr"><span class="fl">Type</span><select id="f-type" onchange="toggleFenType()"></select></div>
+            <div class="fr"><span class="fl">Type</span><select id="f-type"></select></div>
             <div class="fr"><span class="fl">Matériau</span><select id="f-mat"></select></div>
             <div class="fr"><span class="fl">Vitrage</span><select id="f-vit"></select></div>
-            <div class="fr"><span class="fl">Lame (mm)</span><input type="number" inputmode="decimal" id="f-ep" placeholder="ex: 16"></div>
+            <div class="fr"><span class="fl">Lame (mm)</span><input type="number" inputmode="decimal" id="f-ep"></div>
             <div class="fr"><span class="fl">Fermeture</span><select id="f-fer"></select></div>
         </div>
     </div>
-
     <div class="safe-subcard">
         <div class="card" style="margin:0; box-shadow:none; border:none; border-radius:0;">
             <div class="dim-block" id="f-dim-lh"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="f-l" placeholder="L (cm)"> <span>X</span> <input type="number" inputmode="decimal" id="f-h" placeholder="H (cm)"></div></div>
-            <div class="dim-block" id="f-dim-diam" style="display:none;"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="f-diam" placeholder="Ø (cm)"></div></div>
             <div class="fr"><span class="fl">Quantité</span><input type="number" inputmode="decimal" id="f-nb" value="1"></div>
-            <div class="fr"><span class="fl">Motifs</span><input type="number" inputmode="decimal" id="f-motifs" value="1"></div>
         </div>
     </div>
-
-    <button class="btn-p" id="btn-save-fens" onclick="sauverParoi('fens')">Enregistrer la fenêtre</button>
+    <button class="btn-p" onclick="sauverParoi('fens')">Enregistrer la fenêtre</button>
     <div id="list-fens" style="margin-top:20px;"></div>
 </div>
 
 <div id="vw-portes" class="vw">
-    <select id="por-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'portes')"></select>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <select id="por-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'portes')"></select>
+        <button class="btn-xs" style="background:var(--tx); color:#fff; border-radius:12px; padding:0 16px; font-size:14px;" onclick="showNouvelAppt()">+ Lot</button>
+    </div>
     <div class="card">
-        <div class="fr"><span class="fl">Type</span><select id="po-type"><option>Porte opaque pleine</option><option>Porte avec moins de 30% de vitrage</option><option>Porte avec 30 à 60% de vitrage</option></select></div>
+        <div class="fr"><span class="fl">Type</span><select id="po-type"><option>Porte opaque</option><option>Vitrée < 30%</option><option>Vitrée 30 à 60%</option></select></div>
         <div class="fr"><span class="fl">Matériau</span><select id="po-mat"><option>Bois</option><option>PVC</option><option>Métal</option></select></div>
         <div class="fr"><span class="fl">Donne sur</span><select id="po-donne"><option>Extérieur</option><option>Circulations communes</option><option>Local non chauffé</option></select></div>
-        <div class="fr"><span class="fl">Isolation</span><select id="po-iso"><option>Non isolée / Inconnue</option><option>Isolée (U ≤ 1.5)</option></select></div>
-        <div class="fr"><span class="fl">Sas double</span><select id="po-sas"><option>Non</option><option>Oui (Porte + Sas)</option></select></div>
+        <div class="fr"><span class="fl">Isolation</span><select id="po-iso"><option>Non isolée</option><option>Isolée</option></select></div>
         <div class="dim-block"><div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="po-l" placeholder="L"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="po-h" placeholder="H"></div></div>
     </div>
-    <button class="btn-p" id="btn-save-portes" onclick="sauverParoi('portes')">Enregistrer</button>
+    <button class="btn-p" onclick="sauverParoi('portes')">Enregistrer</button>
     <div id="list-portes" style="margin-top:20px;"></div>
 </div>
 
 <div id="vw-plafonds" class="vw">
-    <select id="plf-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'plafonds')"></select>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <select id="plf-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'plafonds')"></select>
+        <button class="btn-xs" style="background:var(--tx); color:#fff; border-radius:12px; padding:0 16px; font-size:14px;" onclick="showNouvelAppt()">+ Lot</button>
+    </div>
     <div class="card">
         <div class="fr"><span class="fl">Type</span><select id="p-type"></select></div>
         <div class="fr"><span class="fl">Donne sur</span><select id="p-donne"></select></div>
@@ -409,12 +315,15 @@
         <div class="fr"><span class="fl">Surface</span><input type="number" inputmode="decimal" step="any" id="p-s" placeholder="ou S directe (m²)"></div>
         <div class="fr"><span class="fl">Isolant</span><select id="p-iso" style="flex:1;"><option>Non</option><option>ITI</option><option>ITE</option></select><input type="number" inputmode="decimal" id="p-iso-ep" placeholder="cm" style="flex:0 0 70px;"></div>
     </div>
-    <button class="btn-p" id="btn-save-plfs" onclick="sauverParoi('plfs')">Enregistrer</button>
+    <button class="btn-p" onclick="sauverParoi('plfs')">Enregistrer</button>
     <div id="list-plfs" style="margin-top:20px;"></div>
 </div>
 
 <div id="vw-planchers" class="vw">
-    <select id="pla-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'planchers')"></select>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <select id="pla-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'planchers')"></select>
+        <button class="btn-xs" style="background:var(--tx); color:#fff; border-radius:12px; padding:0 16px; font-size:14px;" onclick="showNouvelAppt()">+ Lot</button>
+    </div>
     <div class="card">
         <div class="fr"><span class="fl">Type</span><select id="s-type"></select></div>
         <div class="fr"><span class="fl">Donne sur</span><select id="s-donne"></select></div>
@@ -422,7 +331,7 @@
         <div class="fr"><span class="fl">Surface</span><input type="number" inputmode="decimal" step="any" id="s-s" placeholder="ou S directe (m²)"></div>
         <div class="fr"><span class="fl">Isolant</span><select id="s-iso" style="flex:1;"><option>Non</option><option>ITI</option><option>ITE</option></select><input type="number" inputmode="decimal" id="s-iso-ep" placeholder="cm" style="flex:0 0 70px;"></div>
     </div>
-    <button class="btn-p" id="btn-save-plas" onclick="sauverParoi('plas')">Enregistrer</button>
+    <button class="btn-p" onclick="sauverParoi('plas')">Enregistrer</button>
     <div id="list-plas" style="margin-top:20px;"></div>
 </div>
 
@@ -431,102 +340,45 @@
         <div class="safe-exp-title">Fin de visite</div>
         <div class="safe-exp-sub">Transférez la collecte vers MyDiag Studio</div>
     </div>
-
     <div class="safe-exp-card" style="text-align:center; padding: 30px 16px;">
         <div style="font-size:40px; margin-bottom:15px;">🚀</div>
         <div style="font-weight:900; font-size:18px; margin-bottom:10px;">Dossier prêt à être transféré</div>
-        <div style="color:var(--tx2); font-size:14px; margin-bottom:24px;">Générez le fichier de transfert contenant toute votre saisie et les photos pour l'ouvrir au bureau.</div>
-        
+        <div style="color:var(--tx2); font-size:14px; margin-bottom:24px;">Générez le fichier JSON de votre collecte.</div>
         <button class="btn-p" onclick="exportJSON()">1. 💾 Enregistrer le fichier de transfert</button>
-        <button class="btn-p" style="background:#0F172A; margin-top:12px;" onclick="envoyerMailExport()">2. 📧 Envoyer au bureau par E-mail</button>
-    </div>
-
-    <div class="safe-exp-card">
-        <div style="font-weight:900; font-size:13px; text-transform:uppercase; color:#64748b; margin-bottom:10px;">Réinitialisation (Nouveau dossier)</div>
-        <div>
-            <button class="btn-p" style="background:#EF4444;" onclick="resetAllData()">
-                🗑️ Tout effacer pour la prochaine visite
-            </button>
-        </div>
-        <div class="safe-exp-warning">
-            ⚠️ Assurez-vous d'avoir bien transféré le dossier au bureau avant de vider l'application.
-        </div>
+        <button class="btn-p" style="background:#0F172A; margin-top:12px;" onclick="envoyerMailExport()">2. 📧 Envoyer par E-mail</button>
     </div>
 </div>
 
 <div id="sys-toast" class="toast">Action effectuée ✓</div>
-<div id="vw-aide" class="vw">
-    <div style="text-align:center; padding:20px; color:#64748b;">Aide simplifiée MyDiag Terrain. Utilisez cette interface uniquement pour la collecte. Le traitement se fait au bureau.</div>
-</div>
 
 <script>
-    let db = {copro:{}, docs:[], vmc:{}, chaufCol:{}, ecsCol:{}, appts:[], chaufs:[], ecss:[], murs:[], fens:[], modelesFens:[], portes:[], plfs:[], plas:[]};
-    let tempPhotos = { chauf: {}, ecs: {} }; 
-    let expAppts = {};
+    let db = {copro:{}, appts:[], murs:[], fens:[], portes:[], plfs:[], plas:[]};
     let curAppt = null; 
-    let curNivInt = 0; 
-    let editParoiId = null;
-    let currentUploadTarget = null;
     let lastCalc = {};
 
     function genId() { return String(Date.now()) + '_' + Math.random().toString(36).substr(2, 6); }
-    function escHtml(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = String(str); return d.innerHTML; }
-
-    function showConfirmModal(msg, onConfirm, labelOk = 'Confirmer', danger = false) {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9998;display:flex;align-items:flex-end;justify-content:center;padding:20px;';
-        const bg = danger ? '#EF4444' : 'var(--acc)';
-        overlay.innerHTML = `<div style="background:#fff;border-radius:20px;padding:24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
-            <div style="font-size:15px;font-weight:700;color:#0F172A;margin-bottom:20px;line-height:1.5;">${escHtml(msg)}</div>
-            <div style="display:flex;gap:10px;">
-                <button id="modal-cancel-btn" style="flex:1;padding:14px;border-radius:10px;border:1px solid #E2E8F0;background:#fff;cursor:pointer;">Annuler</button>
-                <button id="modal-ok-btn" style="flex:1;padding:14px;border-radius:10px;border:none;background:${bg};color:#fff;font-weight:700;cursor:pointer;">${escHtml(labelOk)}</button>
-            </div>
-        </div>`;
-        document.body.appendChild(overlay);
-        overlay.querySelector('#modal-cancel-btn').onclick = () => overlay.remove();
-        overlay.querySelector('#modal-ok-btn').onclick = () => { overlay.remove(); onConfirm(); };
-    }
-
+    
     function toast(msg) {
         let el = document.getElementById('sys-toast');
-        el.textContent = msg; el.classList.add('show');
+        if(!el) return; el.textContent = msg; el.classList.add('show');
         setTimeout(() => el.classList.remove('show'), 2800);
     }
 
     async function sauvegarderLocal() { 
         try { 
             await localforage.setItem('mydiag_v8_10', db);
-            await localforage.setItem('mydiag_expAppts', expAppts);
             let v = document.getElementById('voyant-save');
             if(v) { v.classList.remove('saved-blink'); void v.offsetWidth; v.classList.add('saved-blink'); }
-        } catch (err) {
-            let el = document.getElementById('sys-toast');
-            el.textContent = '⚠️ Erreur de sauvegarde locale.';
-            el.style.background = '#EF4444'; el.classList.add('show');
-            setTimeout(() => { el.classList.remove('show'); el.style.background = ''; }, 3000);
-        }
+        } catch (err) { toast('⚠️ Erreur de sauvegarde'); }
     }
 
     function updateDashboard() {
-        document.getElementById('acc-copro-name').textContent = db.copro.nom || "Aucune copropriété saisie";
-        updateHomeNextStep();
-        document.getElementById('tdb-appts').textContent = db.appts.length;
+        let nameEl = document.getElementById('acc-copro-name'); if(nameEl) nameEl.textContent = db.copro.nom || "Aucune copropriété saisie";
+        let tdbAppts = document.getElementById('tdb-appts'); if(tdbAppts) tdbAppts.textContent = db.appts.length;
         let totalSurf = db.appts.reduce((acc, val) => acc + (parseFloat(val.surf)||0), 0);
-        document.getElementById('tdb-surf').textContent = totalSurf.toFixed(1);
+        let tdbSurf = document.getElementById('tdb-surf'); if(tdbSurf) tdbSurf.textContent = totalSurf.toFixed(1);
         let totalParois = db.murs.length + db.fens.length + db.portes.length + db.plfs.length + db.plas.length;
-        document.getElementById('tdb-murs').textContent = totalParois;
-        document.getElementById('tdb-sys').textContent = db.chaufs.length + db.ecss.length;
-    }
-
-    function updateHomeNextStep() {
-        let txt = document.getElementById('home-next-text');
-        let sub = document.getElementById('home-next-sub');
-        if(!txt || !sub) return;
-        if(!db.copro.ref) { txt.innerText = "Renseigner la copro"; sub.innerText = "Saisissez l'adresse et les infos générales."; return; }
-        if(db.appts.length === 0) { txt.innerText = "Créer les lots"; sub.innerText = "Ajoutez au moins un échantillon."; return; }
-        if(db.murs.length === 0) { txt.innerText = "Saisir les parois"; sub.innerText = "Commencez par les murs."; return; }
-        txt.innerText = "Clôturer la visite"; sub.innerText = "Si terminé, allez dans l'onglet Fin de visite.";
+        let tdbMurs = document.getElementById('tdb-murs'); if(tdbMurs) tdbMurs.textContent = totalParois;
     }
 
     function saveCoproData() {
@@ -536,81 +388,230 @@
             ville: document.getElementById('copro-ville').value, annee: document.getElementById('copro-annee').value, 
             batiments: document.getElementById('copro-batiments').value, etages: document.getElementById('copro-etages').value
         };
-        const vmcType = document.getElementById('vmc-type'); const vmcPer  = document.getElementById('vmc-periode');
-        if (vmcType || vmcPer) db.vmc = { type: vmcType ? vmcType.value : '', periode: vmcPer ? vmcPer.value : '' };
-        
-        const cEn = document.getElementById('col-chauf-energie'); const cGe = document.getElementById('col-chauf-gen'); const cEm = document.getElementById('col-chauf-emetteur'); const cAn = document.getElementById('col-chauf-annee'); const cPu = document.getElementById('col-chauf-puissance');
-        if (cEn) db.chaufCol = { ...db.chaufCol, energie: cEn.value, gen: cGe.value, emetteur: cEm.value, annee: cAn.value, puissance: cPu.value };
-        
-        const eEn = document.getElementById('col-ecs-energie'); const eTy = document.getElementById('col-ecs-type'); const eAn = document.getElementById('col-ecs-annee'); const eVo = document.getElementById('col-ecs-vol');
-        if (eEn) db.ecsCol = { ...db.ecsCol, energie: eEn.value, type: eTy.value, annee: eAn.value, vol: eVo.value };
-        
         updateDashboard(); sauvegarderLocal();
     }
 
     function goTab(tabId) {
         document.querySelectorAll('.vw').forEach(v => v.classList.remove('on'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-        document.getElementById('vw-' + tabId).classList.add('on');
-        const tabEl = document.querySelector(`.tab[onclick*="${tabId}"]`);
-        if (tabEl) tabEl.classList.add('on');
-        if(tabId === 'accueil') { updateDashboard(); }
-        if(['murs','fen','portes','plafonds','planchers'].includes(tabId)) { verifierAptActif(tabId); renderElementsList(tabId); if(tabId === 'murs') drawCroquis(); }
+        let targetVw = document.getElementById('vw-' + tabId); if(targetVw) targetVw.classList.add('on');
+        const tabEl = document.querySelector(`.tab[onclick*="${tabId}"]`); if (tabEl) tabEl.classList.add('on');
+        if(tabId === 'accueil') updateDashboard();
+        if(['murs','fen','portes','plafonds','planchers'].includes(tabId)) { verifierAptActif(tabId); renderElementsList(tabId); }
     }
 
-    function toggleAcc(id, el) { const body = document.getElementById(id); body.classList.toggle('open'); const arrow = el.querySelector('span:last-child'); if(arrow) arrow.textContent = body.classList.contains('open') ? '▼' : '▶'; }
-
-    // UPLOAD PHOTO (Même logique mais plus légère)
-    function triggerUpload(type, id = null) { currentUploadTarget = { type, id }; document.getElementById('global-uploader').click(); }
-    document.getElementById('global-uploader').onchange = function(e) {
-        const file = e.target.files[0]; if(!file || !file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas'); const MAX_DIM = 1024;
-                let w = img.width, h = img.height; let scale = Math.min(MAX_DIM/w, MAX_DIM/h);
-                if(scale < 1) { w = Math.round(w * scale); h = Math.round(h * scale); }
-                canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                const b64 = canvas.toDataURL('image/jpeg', 0.82); saveFileToTarget({ name: file.name, data: b64 });
-            }; img.src = ev.target.result;
-        }; reader.readAsDataURL(file); e.target.value = '';
-    };
-
-    function saveFileToTarget(f) {
-        const t = currentUploadTarget;
-        if(t.type === 'doc') { db.docs.push({ id: genId(), name: f.name, type: 'img', data: f.data }); renderDocs(); } 
-        else if (t.type === 'chaufCol') { db.chaufCol.photo = f.data; renderCoproPhotos(); }
-        else if (t.type === 'ecsCol') { db.ecsCol.photo = f.data; renderCoproPhotos(); }
-        else if (t.type === 'chaufIndTemp') { tempPhotos.chauf[t.id] = f.data; renderApptsList(); }
-        else if (t.type === 'ecsIndTemp') { tempPhotos.ecs[t.id] = f.data; renderApptsList(); }
-        else if (t.type === 'chaufInd') { let cIndex = db.chaufs.findIndex(x => String(x.id) === String(t.id)); if(cIndex >= 0) { db.chaufs[cIndex].photo = f.data; document.getElementById('chauf-list-'+db.chaufs[cIndex].aptId).innerHTML = buildChaufListHTML(db.chaufs[cIndex].aptId); } }
-        else if (t.type === 'ecsInd') { let eIndex = db.ecss.findIndex(x => String(x.id) === String(t.id)); if(eIndex >= 0) { db.ecss[eIndex].photo = f.data; document.getElementById('ecs-list-'+db.ecss[eIndex].aptId).innerHTML = buildEcsListHTML(db.ecss[eIndex].aptId); } }
-        sauvegarderLocal();
+    function toggleAcc(id, el) { 
+        const body = document.getElementById(id); if(!body) return;
+        body.classList.toggle('open'); 
+        const arrow = el.querySelector('span:last-child'); 
+        if(arrow) arrow.textContent = body.classList.contains('open') ? '▼' : '▶'; 
     }
 
-    function renderDocs() {
-        document.getElementById('list-docs').innerHTML = db.docs.map(d => `
-            <div class="item-row" style="align-items:center;">
-                <img src="${d.data}" class="thumb" onclick="viewImage(this.src)">
-                <div style="flex:1; margin-left:12px; font-size:12px; font-weight:bold;">${escHtml(d.name)}</div>
-                <button class="btn-xs" style="color:red;" onclick="db.docs=db.docs.filter(x=>String(x.id)!=='${d.id}'); renderDocs(); sauvegarderLocal();">X</button>
-            </div>`).join('');
+    // --- CRÉATION DE LOT EN "MODAL" FLOTTANT (La grande nouveauté) ---
+    function showNouvelAppt() {
+        document.getElementById('modal-new-apt').style.display = 'flex';
+        let numSel = document.getElementById('apt-num'); numSel.innerHTML = '';
+        for(let i=1; i<=30; i++) { let num = "E" + (i<10?"0"+i:i); numSel.innerHTML += `<option value="${num}">${num}</option>`; }
+        updateBatimentOptions('apt-bat'); updateEtageOptions('apt-etage');
+    }
+    
+    function hideNouvelAppt() { document.getElementById('modal-new-apt').style.display = 'none'; }
+    
+    function updateBatimentOptions(id) {
+        let el = document.getElementById(id); if(!el) return; let max = parseInt(db.copro.batiments) || 3;
+        el.innerHTML = '<option value="">—</option>'; for(let i=1; i<=max; i++) el.innerHTML += `<option value="${i}">Bâtiment ${i}</option>`;
+    }
+    
+    function updateEtageOptions(id) {
+        let el = document.getElementById(id); if(!el) return; let max = parseInt(db.copro.etages) || 10;
+        el.innerHTML = '<option value="">—</option><option value="RDC">RDC</option>';
+        for(let i=1; i<=max; i++) el.innerHTML += `<option value="${i}">Étage ${i}</option>`;
+    }
+    
+    function autoSetNiveau(val, targetId) {
+        let t = document.getElementById(targetId); if(!t) return;
+        if(val === 'RDC') t.value = 'RDC'; else if(val === db.copro.etages) t.value = 'Dernier étage'; else t.value = 'Intermédiaire';
     }
 
-    // INITIALISATION
-    window.onload = async () => {
-        const data = await localforage.getItem('mydiag_v8_10');
-        if (data) db = {...db, ...data};
-        const savedExp = await localforage.getItem('mydiag_expAppts');
-        if (savedExp) expAppts = savedExp;
-        renderDocs(); updateDashboard();
-        ['copro-ref','copro-nom','copro-adresse','copro-cp','copro-ville','copro-annee','copro-batiments','copro-etages'].forEach(id => {
-            let k = id.replace('copro-',''); if (db.copro[k] !== undefined && db.copro[k] !== null) { const el = document.getElementById(id); if(el) el.value = db.copro[k]; }
+    function creerAppt() {
+        let num = document.getElementById('apt-num').value;
+        let surf = document.getElementById('apt-surf').value;
+        if(!num || !surf) { toast("N° échantillon et surface requis !"); return; }
+        
+        let apt = {
+            id: genId(), num: num, type: document.getElementById('apt-type').value,
+            bat: document.getElementById('apt-bat').value, etage: document.getElementById('apt-etage').value,
+            niveau: document.getElementById('apt-niveau').value, surf: surf, hsp: document.getElementById('apt-hsp').value || '2.50'
+        };
+        db.appts.push(apt);
+        curAppt = apt.id; // Le nouveau lot devient automatiquement le lot ciblé
+        
+        hideNouvelAppt(); 
+        toast("Lot " + num + " créé !");
+        
+        sauvegarderLocal(); 
+        renderApptsList(); 
+        updateDashboard(); 
+        peuplerTargets(); 
+        
+        // Rafraichit la liste des éléments de l'onglet actif (si on l'a créé depuis "Murs", la liste des murs se vide car nouveau lot)
+        let activeTab = document.querySelector('.vw.on').id.replace('vw-', '');
+        if(['murs','fen','portes','plafonds','planchers'].includes(activeTab)) { renderElementsList(activeTab); }
+    }
+
+    // --- NAVIGATION TRANSVERSALE DEPUIS LA LISTE DES LOTS ---
+    function fastNav(aptId, tabName) {
+        curAppt = aptId;
+        peuplerTargets();
+        goTab(tabName);
+    }
+
+    function renderApptsList() {
+        let lbl = document.getElementById('appts-count-lbl'); if(lbl) lbl.innerText = db.appts.length + (db.appts.length > 1 ? ' lots' : ' lot');
+        let html = '';
+        db.appts.forEach(a => {
+            // Ajout des boutons de navigation transversale
+            html += `<div class="item-row" style="flex-direction:column; align-items:stretch;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div><div style="font-weight:900; color:var(--acc);">Lot ${a.num}</div><div style="font-size:12px; color:var(--tx2);">${a.surf} m²</div></div>
+                    <button class="btn-xs" style="background:#FEE2E2; color:#EF4444;" onclick="supprimerAppt('${a.id}')">Supprimer</button>
+                </div>
+                <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; border-top:1px dashed var(--bor); padding-top:10px;">
+                    <button class="qbtn" onclick="fastNav('${a.id}', 'murs')">🧱 Murs</button>
+                    <button class="qbtn" onclick="fastNav('${a.id}', 'fen')">🪟 Fen.</button>
+                    <button class="qbtn" onclick="fastNav('${a.id}', 'portes')">🚪 Portes</button>
+                    <button class="qbtn" onclick="fastNav('${a.id}', 'plafonds')">🔝 Plaf.</button>
+                    <button class="qbtn" onclick="fastNav('${a.id}', 'planchers')">🔽 Plan.</button>
+                </div>
+            </div>`;
         });
-        peuplerSelects(); renderCoproPhotos(); renderBibliFens();
-    };
+        let liste = document.getElementById('appts-liste'); if(liste) liste.innerHTML = html;
+    }
 
+    function supprimerAppt(id) {
+        if(!confirm("Supprimer ce lot et toutes ses parois ?")) return;
+        db.appts = db.appts.filter(x => x.id !== id);
+        ['murs','fens','portes','plfs','plas'].forEach(k => db[k] = db[k].filter(x => x.aid !== id));
+        if(curAppt === id) curAppt = null;
+        sauvegarderLocal(); renderApptsList(); updateDashboard(); peuplerTargets();
+    }
+
+    function peuplerTargets() {
+        let html = '<option value="">-- Choisir un lot --</option>';
+        db.appts.forEach(a => { html += `<option value="${a.id}">Lot ${a.num} (${a.surf}m²)</option>`; });
+        ['murs-target', 'fen-target', 'por-target', 'plf-target', 'pla-target'].forEach(id => {
+            let el = document.getElementById(id); if(el) { el.innerHTML = html; if(curAppt) el.value = curAppt; }
+        });
+    }
+
+    function verifierAptActif(tab) { if(!curAppt && db.appts.length > 0) { curAppt = db.appts[0].id; peuplerTargets(); } }
+    function changeTargetApt(val, tab) { curAppt = val; peuplerTargets(); renderElementsList(tab); }
+
+    // --- GESTION DES PAROIS ---
+    function sauverParoi(type) {
+        if(!curAppt) return toast("⚠️ Créez ou sélectionnez un lot !");
+        let el = { id: genId(), aid: curAppt };
+        
+        if(type === 'murs') {
+            el.ori = document.getElementById('m-ori').value; el.donne = document.getElementById('m-donne').value;
+            el.mat = document.getElementById('m-mat').value; el.ep = document.getElementById('m-ep').value;
+            el.l = document.getElementById('m-l').value; el.h = document.getElementById('m-h').value;
+            if(!el.l || !el.h) return toast("Saisissez L et H"); db.murs.push(el);
+        } else if(type === 'fens') {
+            el.ori = document.getElementById('f-ori').value; el.type = document.getElementById('f-type').value;
+            el.mat = document.getElementById('f-mat').value; el.vit = document.getElementById('f-vit').value;
+            el.l = document.getElementById('f-l').value; el.h = document.getElementById('f-h').value;
+            if(!el.l || !el.h) return toast("Saisissez L et H"); db.fens.push(el);
+        } else if(type === 'portes') {
+            el.type = document.getElementById('po-type').value; el.mat = document.getElementById('po-mat').value;
+            el.l = document.getElementById('po-l').value; el.h = document.getElementById('po-h').value;
+            if(!el.l || !el.h) return toast("Saisissez L et H"); db.portes.push(el);
+        } else if(type === 'plfs') {
+            el.type = document.getElementById('p-type').value; el.donne = document.getElementById('p-donne').value;
+            el.l = document.getElementById('p-l').value; el.larg = document.getElementById('p-larg').value; el.s = document.getElementById('p-s').value;
+            if(!el.s && (!el.l || !el.larg)) return toast("Saisissez la surface ou L et larg"); db.plfs.push(el);
+        } else if(type === 'plas') {
+            el.type = document.getElementById('s-type').value; el.donne = document.getElementById('s-donne').value;
+            el.l = document.getElementById('s-l').value; el.larg = document.getElementById('s-larg').value; el.s = document.getElementById('s-s').value;
+            if(!el.s && (!el.l || !el.larg)) return toast("Saisissez la surface ou L et larg"); db.plas.push(el);
+        }
+
+        toast("Enregistré !"); sauvegarderLocal(); renderElementsList(type);
+    }
+
+    function renderElementsList(type) {
+        if(!curAppt) return; let listId = '', arr = [];
+        if(type === 'murs') { listId = 'list-murs'; arr = db.murs.filter(x=>x.aid===curAppt); }
+        if(type === 'fen' || type === 'fens') { listId = 'list-fens'; arr = db.fens.filter(x=>x.aid===curAppt); type = 'fens'; }
+        if(type === 'portes') { listId = 'list-portes'; arr = db.portes.filter(x=>x.aid===curAppt); }
+        if(type === 'plafonds' || type === 'plfs') { listId = 'list-plfs'; arr = db.plfs.filter(x=>x.aid===curAppt); type = 'plfs'; }
+        if(type === 'planchers' || type === 'plas') { listId = 'list-plas'; arr = db.plas.filter(x=>x.aid===curAppt); type = 'plas'; }
+        
+        let el = document.getElementById(listId); if(!el) return; let html = '';
+        arr.forEach(x => {
+            let desc = (x.l && x.h) ? `${x.l}x${x.h}` : (x.s ? x.s+'m²' : `${x.l}x${x.larg}`);
+            if(x.mat) desc += ` - ${x.mat}`;
+            html += `<div class="item-row" style="align-items:center;">
+                <div style="font-size:13px; font-weight:700;">${desc}</div>
+                <button class="btn-xs" style="background:#FEE2E2; color:#EF4444;" onclick="supprimerElement('${type}', '${x.id}')">X</button>
+            </div>`;
+        });
+        el.innerHTML = html; updateDashboard();
+    }
+
+    function supprimerElement(type, id) {
+        if(type === 'murs') db.murs = db.murs.filter(x=>x.id!==id);
+        if(type === 'fens') db.fens = db.fens.filter(x=>x.id!==id);
+        if(type === 'portes') db.portes = db.portes.filter(x=>x.id!==id);
+        if(type === 'plfs') db.plfs = db.plfs.filter(x=>x.id!==id);
+        if(type === 'plas') db.plas = db.plas.filter(x=>x.id!==id);
+        sauvegarderLocal(); renderElementsList(type);
+    }
+
+    // --- CALCUL GÉOMÉTRIQUE ---
+    function runCalc() {
+        let L = parseFloat(document.getElementById('calc-L').value); let l = parseFloat(document.getElementById('calc-l').value);
+        let h = parseFloat(document.getElementById('calc-h').value); let H = parseFloat(document.getElementById('calc-H').value);
+        let proj = parseFloat(document.getElementById('calc-proj').value) || 0;
+        let resDiv = document.getElementById('calc-res');
+
+        if(isNaN(L) || isNaN(l) || isNaN(h) || isNaN(H) || H < h || (proj * 2) > l) { resDiv.style.display = 'none'; return; }
+        
+        let l_plat = Math.max(0, l - (2 * proj));
+        let sMur = L * h; let sPig = (l * h) + (((l + l_plat) / 2) * (H - h));
+        let hyp = Math.sqrt(Math.pow(H - h, 2) + Math.pow(proj, 2));
+        let sRamp = L * hyp; let sPlat = L * l_plat;
+
+        let sHabitable = 0;
+        if (H < 1.80) sHabitable = 0; else if (h >= 1.80) sHabitable = L * l;
+        else { let x_180 = (1.80 - h) * (proj / (H - h)); let l_hab = l - (2 * x_180); sHabitable = L * l_hab; }
+
+        lastCalc = { sMur: sMur.toFixed(2), sPig: sPig.toFixed(2), sRamp: sRamp.toFixed(2), sPlat: sPlat.toFixed(2), sHab: sHabitable.toFixed(2) };
+        document.getElementById('res-mur').textContent = lastCalc.sMur + ' m²'; document.getElementById('res-pig').textContent = lastCalc.sPig + ' m²';
+        document.getElementById('res-ramp').textContent = lastCalc.sRamp + ' m²'; document.getElementById('res-plat').textContent = lastCalc.sPlat + ' m²';
+        document.getElementById('res-shab').textContent = lastCalc.sHab + ' m²';
+        document.getElementById('row-calc-plat').style.display = l_plat > 0 ? 'flex' : 'none';
+        resDiv.style.display = 'block';
+    }
+
+    window.applyHabSurface = function() {
+        if(!curAppt) return toast("⚠️ Sélectionnez un lot !");
+        if(!lastCalc.sHab) return;
+        let apt = db.appts.find(x => x.id === curAppt);
+        if(apt) { apt.surf = lastCalc.sHab; sauvegarderLocal(); renderApptsList(); toast("Surface appliquée !"); }
+    }
+
+    function addCalc(type) {
+        if(!curAppt) return toast("⚠️ Créez ou sélectionnez un lot !");
+        let el = { id: genId(), aid: curAppt };
+        if(type === 'mur') { el.l = document.getElementById('calc-L').value; el.h = document.getElementById('calc-h').value; el.mat="Inconnu"; db.murs.push(el); toast("Mur ajouté"); }
+        else if(type === 'pig') { el.l = document.getElementById('calc-l').value; el.h = (parseFloat(lastCalc.sPig)/parseFloat(el.l)).toFixed(2); el.mat="Inconnu"; db.murs.push(el); toast("Pignon ajouté"); }
+        else if(type === 'ramp') { el.s = lastCalc.sRamp; el.type="Combles aménagés sous rampants"; db.plfs.push(el); toast("Rampant ajouté"); }
+        else if(type === 'plat') { el.s = lastCalc.sPlat; el.type="Inconnu"; db.plfs.push(el); toast("Plafond ajouté"); }
+        sauvegarderLocal(); renderElementsList(type === 'mur' || type === 'pig' ? 'murs' : 'plfs');
+    }
+
+    // --- ALIMENTATION DES MENUS DÉROULANTS ---
     const ADN = {
         MURS: ["Pierre de taille moellons", "Pisé ou béton de terre", "Pans de bois", "Briques pleines", "Briques creuses", "Blocs de béton pleins", "Blocs de béton creux", "Béton banché", "Brique terre cuite alvéolaire", "Ossature bois", "Inconnu"],
         DONNE_SUR_MURS: ["Extérieur", "Local non chauffé", "Circulations communes", "Local chauffé", "Comble", "Terre (paroi enterrée)"],
@@ -629,112 +630,28 @@
         fill('m-mat', ADN.MURS); fill('m-donne', ADN.DONNE_SUR_MURS); fill('f-type', ADN.FEN_TYPE); fill('f-mat', ADN.FEN_MATIERE); fill('f-vit', ADN.FEN_VITRAGE); fill('f-fer', ADN.FEN_FERMETURE); fill('p-type', ADN.PLAFONDS); fill('p-donne', ADN.DONNE_SUR_PLAFOND); fill('s-type', ADN.PLANCHERS); fill('s-donne', ADN.DONNE_SUR_PLANCHER);
     }
 
-    // FONCTION EXPORT TERRAIN SIMPLIFIÉE
+    // --- FIN DE VISITE & TRANSFERT ---
     function exportJSON() { 
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); 
-        const a = document.createElement('a'); a.setAttribute("href", dataStr); 
-        a.setAttribute("download", "Transfert_MyDiag_" + (db.copro.ref || 'Dossier') + "_" + Date.now() + ".json"); 
+        const a = document.createElement('a'); a.href = dataStr; 
+        a.download = "Transfert_MyDiag_" + (db.copro.ref || 'Dossier') + ".json"; 
         document.body.appendChild(a); a.click(); a.remove(); 
-        toast("Fichier de transfert généré !");
-    }
-
-    window.envoyerMailExport = function() {
-        const ref = db.copro.ref || "Sans_Ref";
-        const subject = encodeURIComponent(`Fichier Transfert MyDiag - Réf: ${ref}`);
-        const body = encodeURIComponent(`Bonjour,\n\nVoici le fichier de visite Terrain (.json) pour le dossier ${ref}.\nÀ importer dans MyDiag Studio au bureau.\n\nCordialement.`);
-        window.location.href = `mailto:?subject=${subject}&body=${body}`;
-    };
-
-    async function resetAllData() {
-        if(confirm("⚠️ Avez-vous bien transféré ce dossier au bureau avant d'effacer la tablette ?")) {
-            await localforage.clear(); localStorage.clear(); location.reload();
-        }
-    }
-
-    // --- MOTEUR DE CALCUL GÉOMÉTRIQUE RÉPARÉ ---
-    function runCalc() {
-        let L = parseFloat(document.getElementById('calc-L').value);
-        let l = parseFloat(document.getElementById('calc-l').value);
-        let h = parseFloat(document.getElementById('calc-h').value);
-        let H = parseFloat(document.getElementById('calc-H').value);
-        let proj = parseFloat(document.getElementById('calc-proj').value) || 0;
-        let resDiv = document.getElementById('calc-res');
-
-        if(isNaN(L) || isNaN(l) || isNaN(h) || isNaN(H) || H < h || (proj * 2) > l) { resDiv.style.display = 'none'; return; }
-        
-        let l_plat = l - (2 * proj);
-        if (l_plat < 0) l_plat = 0;
-
-        let sMur = L * h;
-        let sPig = (l * h) + (((l + l_plat) / 2) * (H - h));
-        let baseRampant = proj;
-        let hyp = Math.sqrt(Math.pow(H - h, 2) + Math.pow(baseRampant, 2));
-        let sRamp = L * hyp;
-        let sPlat = L * l_plat;
-
-        let sHabitable = 0;
-        if (H < 1.80) {
-            sHabitable = 0;
-        } else if (h >= 1.80) {
-            sHabitable = L * l;
-        } else {
-            let x_180 = (1.80 - h) * (baseRampant / (H - h));
-            let l_hab = l - (2 * x_180);
-            sHabitable = L * l_hab;
-        }
-
-        lastCalc = { sMur: sMur.toFixed(2), sPig: sPig.toFixed(2), sRamp: sRamp.toFixed(2), sPlat: sPlat.toFixed(2), sHab: sHabitable.toFixed(2) };
-        document.getElementById('res-mur').textContent = lastCalc.sMur + ' m²';
-        document.getElementById('res-pig').textContent = lastCalc.sPig + ' m²';
-        document.getElementById('res-ramp').textContent = lastCalc.sRamp + ' m²';
-        document.getElementById('res-plat').textContent = lastCalc.sPlat + ' m²';
-        document.getElementById('res-shab').textContent = lastCalc.sHab + ' m²';
-        document.getElementById('row-calc-plat').style.display = l_plat > 0 ? 'flex' : 'none';
-        resDiv.style.display = 'block';
-    }
-
-    window.applyHabSurface = function() {
-        if(!curAppt || curAppt === 'copro') return toast("⚠️ Sélectionnez d'abord un appartement");
-        if(!lastCalc.sHab) return;
-        updateApptField(curAppt, 'surf', lastCalc.sHab);
-        
-        let surfInput = document.querySelector(`#vw-appts input[value="${lastCalc.sHab}"]`);
-        if(surfInput) surfInput.value = lastCalc.sHab;
-        
-        toast("Surface habitable (" + lastCalc.sHab + " m²) appliquée au lot !");
-    };
-
-    function addCalc(type) {
-        if(!curAppt) curAppt = 'copro';
-        let el = { id: genId(), aid: curAppt, nivInt: curNivInt };
-        if(type === 'mur') {
-            el.mat = 'Inconnu'; el.ori = ''; el.donne = 'Extérieur'; 
-            el.l = document.getElementById('calc-L').value; el.h = document.getElementById('calc-h').value; 
-            el.ep = ''; el.isoEp = ''; el.doub = 'ABSENT'; el.iso = 'Non'; db.murs.push(el); toast("Mur Façade ajouté. Modifiez-le ✏️");
-        } else if(type === 'pig') {
-            el.mat = 'Inconnu'; el.ori = ''; el.donne = 'Extérieur'; el.l = document.getElementById('calc-l').value; 
-            let sPig = parseFloat(lastCalc.sPig); let fauxH = sPig / parseFloat(el.l); el.h = fauxH.toFixed(2); 
-            el.ep = ''; el.isoEp = ''; el.doub = 'ABSENT'; el.iso = 'Non'; db.murs.push(el); toast("Mur Pignon ajouté. Modifiez-le ✏️");
-        } else if(type === 'ramp') {
-            el.type = 'Combles aménagés sous rampants'; el.donne = 'Extérieur'; el.s = lastCalc.sRamp; el.iso = 'Non'; el.isoEp = ''; db.plfs.push(el); toast("Plafond rampant ajouté. Modifiez-le ✏️");
-        } else if(type === 'plat') {
-            el.type = 'Inconnu'; el.donne = 'Combles perdus'; el.s = lastCalc.sPlat; el.iso = 'Non'; el.isoEp = ''; db.plfs.push(el); toast("Plafond plat ajouté. Modifiez-le ✏️");
-        }
-        sauvegarderLocal(); 
-        
-        if(typeof renderElementsList === 'function') {
-            renderElementsList(type === 'mur' || type === 'pig' ? 'murs' : 'plfs');
-        }
-        if((type === 'mur' || type === 'pig') && typeof drawCroquis === 'function') {
-            drawCroquis();
-        }
     }
     
-    // =========================================================================
-    // ⚠️ RESTE DU CODE LOGIQUE DE TON APPLICATION INITIALE (MyDiag V8.12)
-    // -> Colle ici tes fonctions (creerAppt, sauverParoi, renderElementsList, etc)
-    // =========================================================================
+    window.envoyerMailExport = function() {
+        const ref = db.copro.ref || "Sans_Ref";
+        window.location.href = `mailto:?subject=Transfert MyDiag Terrain - Réf: ${ref}&body=Ci-joint le JSON généré.`;
+    };
 
+    // --- DÉMARRAGE DE L'APPLICATION ---
+    window.onload = async () => {
+        const data = await localforage.getItem('mydiag_v8_10');
+        if (data) db = {...db, ...data};
+        ['copro-ref','copro-nom','copro-adresse','copro-cp','copro-ville','copro-annee','copro-batiments','copro-etages'].forEach(id => {
+            let k = id.replace('copro-',''); let el = document.getElementById(id); if (el && db.copro[k]) el.value = db.copro[k];
+        });
+        peuplerSelects(); renderApptsList(); peuplerTargets(); updateDashboard();
+    };
 </script>
 
 </body>
