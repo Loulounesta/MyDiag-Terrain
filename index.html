@@ -37,12 +37,13 @@
 
 <input type="file" id="global-uploader" style="display:none;" accept="image/*,application/pdf" capture="environment">
 <input type="file" id="json-uploader" style="display:none;" accept="application/json,.json">
+<input type="file" id="calque-uploader" style="display:none;" accept="image/*,application/pdf">
 
 <div class="topbar">
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.1</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.2</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -193,6 +194,125 @@
         <button class="btn-xs" style="background:var(--acc); color:#fff; padding:10px 16px; border-radius:20px;" onclick="showNouvelAppt()">+ Nouveau lot</button>
     </div>
     <div id="appts-liste"></div>
+</div>
+
+<div id="vw-pieces" class="vw">
+    <div class="safe-section-title">Contexte de saisie</div>
+    <div class="safe-context-card">
+        <div class="safe-context-head">
+            <div>
+                <div class="safe-context-title">Pièces du lot</div>
+                <div class="safe-context-sub">Mesurez pièce par pièce : la surface et le plan se construisent tout seuls.</div>
+            </div>
+            <div class="safe-mini-badge">📐 Pièces</div>
+        </div>
+        <select id="pie-target" class="appt-target-sel" onchange="changeTargetApt(this.value, 'pieces')"></select>
+        <div id="pie-niv-container"></div>
+    </div>
+
+    <div class="safe-section-title" id="form-pieces">Ajouter une pièce</div>
+
+    <div class="safe-subcard">
+        <div class="safe-subhead">Nom de la pièce
+            <span class="safe-subhint">Touchez un raccourci, ou saisissez un nom libre.</span>
+        </div>
+        <div style="padding:12px 14px;">
+            <div class="piece-chips" id="piece-chips"></div>
+            <input type="text" id="pie-nom" placeholder="ex : Séjour" class="calc-input" style="text-align:left; margin-top:10px;">
+        </div>
+    </div>
+
+    <div class="safe-subcard safe-dim-wrap">
+        <div class="safe-subhead">Dimensions au sol
+            <span class="safe-subhint">Longueur × largeur en mètres. Entrée enchaîne les champs puis enregistre.</span>
+        </div>
+        <div class="card card-flat">
+            <div class="dim-block" style="border-bottom:none;">
+                <div class="dim-lbl">Longueur × largeur (m)</div>
+                <div class="dim-inputs">
+                    <input type="number" inputmode="decimal" step="any" id="pie-l" placeholder="L" enterkeyhint="next" data-next="pie-larg">
+                    <span>X</span>
+                    <input type="number" inputmode="decimal" step="any" id="pie-larg" placeholder="larg" enterkeyhint="done" data-submit="pieces">
+                </div>
+                <div id="pie-apercu" class="pie-apercu"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="plan-container" class="canvas-container" style="display:none;">
+        <div class="croquis-header">
+            <span class="croquis-title">🏠 Plan assemblé du niveau</span>
+            <div class="plan-outils">
+                <button class="btn-xs btn-soft" onclick="assemblerPieces(true)">✨ Réassembler</button>
+                <button class="btn-xs btn-soft" onclick="pivoterPieceSel()">↻ Pivoter</button>
+            </div>
+        </div>
+        <canvas id="plan-canvas"></canvas>
+        <div id="plan-msg" class="plan-msg"></div>
+        <div class="plan-actions">
+            <button class="btn-xs" style="background:var(--ok); color:#fff;" onclick="appliquerSurfacePieces()">✔️ Appliquer la surface au lot</button>
+            <button class="btn-xs btn-soft" onclick="enregistrerPlanPieces()">💾 Enregistrer le plan</button>
+            <button class="btn-xs btn-soft" onclick="genererMursDepuisPieces()">🧱 Générer les murs</button>
+        </div>
+    </div>
+
+    <div class="safe-list-card">
+        <div class="safe-list-head">Pièces saisies <span id="pie-total" class="list-head-info"></span></div>
+        <div class="safe-list-body"><div id="list-pieces"></div></div>
+    </div>
+</div>
+
+<div id="vw-calque" class="vw">
+    <div class="safe-section-title">Contexte</div>
+    <div class="safe-context-card">
+        <div class="safe-context-head">
+            <div>
+                <div class="safe-context-title">Décalquer un plan existant</div>
+                <div class="safe-context-sub">Chargez le plan du syndic (PDF ou photo), donnez l’échelle, suivez les murs.</div>
+            </div>
+            <div class="safe-mini-badge">📄 Calque</div>
+        </div>
+        <select id="cal-target" class="appt-target-sel" onchange="changerCibleCalque(this.value)"></select>
+        <div id="cal-niv-container"></div>
+    </div>
+
+    <div class="safe-subcard">
+        <div class="safe-subhead">Étapes
+            <span class="safe-subhint">Chargez, calibrez sur une cote connue, puis suivez le contour.</span>
+        </div>
+        <div class="cal-etapes" id="cal-etapes"></div>
+    </div>
+
+    <div class="cal-zone">
+        <canvas id="calque-canvas"></canvas>
+        <div id="cal-vide" class="cal-vide">
+            <div style="font-size:34px; margin-bottom:10px;">📄</div>
+            <div style="font-weight:800; margin-bottom:6px;">Aucun plan chargé</div>
+            <div style="font-size:13px; color:var(--tx2); line-height:1.5;">Chargez le plan de l’immeuble ou du lot,<br>en PDF ou en photo.</div>
+            <button class="btn-p" style="max-width:260px; margin:16px auto 0;" onclick="chargerPlanCalque()">📂 Charger un plan</button>
+        </div>
+        <div class="cal-zoom" id="cal-zoom" hidden>
+            <button class="cal-zbtn" onclick="zoomCalque(1.35)">＋</button>
+            <button class="cal-zbtn" onclick="zoomCalque(0.74)">－</button>
+            <button class="cal-zbtn" onclick="recentrerCalque()">⛶</button>
+        </div>
+    </div>
+
+    <div id="cal-barre" class="cal-barre" hidden>
+        <button class="btn-xs btn-soft" onclick="chargerPlanCalque()">📂 Changer</button>
+        <button class="btn-xs btn-soft" id="cal-btn-page" onclick="pageSuivanteCalque()" hidden>Page suivante</button>
+        <button class="btn-xs btn-soft" onclick="lancerCalibrage()">📏 Calibrer</button>
+        <button class="btn-xs btn-soft" onclick="annulerDernierPoint()">↩︎ Annuler le point</button>
+        <button class="btn-xs btn-soft" onclick="effacerTrace()">🗑️ Effacer le tracé</button>
+    </div>
+
+    <div id="cal-resultat" class="cal-resultat" hidden></div>
+
+    <div id="cal-actions" class="plan-actions" hidden>
+        <button class="btn-xs" style="background:var(--ok); color:#fff;" onclick="appliquerSurfaceCalque()">✔️ Appliquer la surface</button>
+        <button class="btn-xs btn-soft" onclick="enregistrerPlanCalque()">💾 Enregistrer le plan</button>
+        <button class="btn-xs btn-soft" onclick="genererMursDepuisCalque()">🧱 Générer les murs</button>
+    </div>
 </div>
 
 <div id="vw-murs" class="vw">
@@ -773,7 +893,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.1</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.2</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

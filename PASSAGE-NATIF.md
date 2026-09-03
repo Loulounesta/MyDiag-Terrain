@@ -15,6 +15,7 @@ endroit du code.
 |---|---|
 | Bibliothèques embarquées localement (`lib/`) | ✅ fait |
 | Code séparé : `index.html`, `css/app.css`, `js/app.js` | ✅ fait |
+| Rendu des plans PDF embarqué (`lib/pdf.min.js`) | ✅ fait |
 | Aucun appel à un CDN externe | ✅ fait |
 | Accès système regroupés dans l'objet `Plateforme` | ✅ fait |
 | Manifeste et icône d'application | ✅ fait |
@@ -144,6 +145,8 @@ Pour une meilleure ergonomie, on pourra plus tard utiliser le module
 - **Avantage majeur du natif :** les données deviennent des données
   d'application (sauvegardées avec iCloud / Google, jamais purgées),
   contrairement au stockage navigateur qui peut être effacé par le système.
+- **Le calque de plan** utilise `lib/pdf.min.js` et son worker `lib/pdf.worker.min.js` :
+  les deux fichiers doivent rester côte à côte dans `lib/`, y compris en natif.
 - **Les photos sont stockées dans un store IndexedDB séparé** (`mydiag-medias`) ;
   le backup JSON les ré-intègre automatiquement, rien à faire côté natif.
 - **Le service worker (`sw.js`) est inutile en natif** — les fichiers sont

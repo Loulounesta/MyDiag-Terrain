@@ -83,6 +83,21 @@ const Dialogue = {
         const dlg = $('dlg'); const e = $('dlg-choix'); if (e) { choix = e.value; e.onchange = () => { choix = e.value; }; }
         return p.then(v => v ? (sel() ?? choix) : null);
     },
+    // Saisie d'une valeur numérique ; retourne la valeur ou null.
+    saisir({ titre = 'Saisie', message = '', valeur = '', unite = '', ok = 'Valider', annuler = 'Annuler' } = {}) {
+        if (!this._supporte()) { const r = window.prompt(message || titre, valeur); return Promise.resolve(r === null ? null : r.replace(',', '.')); }
+        const html = `
+            <div class="dlg-body"><div class="dlg-title">${esc(titre)}</div>${message ? `<div class="dlg-msg">${esc(message)}</div>` : ''}
+                <input type="number" inputmode="decimal" step="any" id="dlg-saisie" class="dlg-select" value="${esc(valeur)}" placeholder="${esc(unite)}" enterkeyhint="done"></div>
+            <div class="dlg-actions"><button type="button" class="dlg-cancel" data-val="0">${esc(annuler)}</button><button type="button" class="dlg-ok" data-val="1">${esc(ok)}</button></div>`;
+        const p = this._ouvrir(html);
+        const champ = $('dlg-saisie');
+        if (champ) {
+            champ.focus();
+            champ.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const b = $('dlg').querySelector('.dlg-ok'); if (b) b.click(); } };
+        }
+        return p.then(v => { const val = champ ? champ.value : ''; return v && val ? String(val).replace(',', '.') : null; });
+    },
     alerter(message, titre = 'Information') {
         if (!this._supporte()) { window.alert(message); return Promise.resolve(true); }
         return this._ouvrir(`
@@ -107,6 +122,7 @@ document.addEventListener('change', e => {
     const fn = Changements[el.dataset.chg]; if (fn) fn(el.dataset, el, e);
 });
 // Entrée dans un champ de dimension : passe au champ suivant (data-next) ou valide (data-submit).
+document.addEventListener('input', e => { if (e.target && (e.target.id === 'pie-l' || e.target.id === 'pie-larg')) majApercuPiece(); if (e.target && e.target.id === 'pie-nom') renderChipsPieces(); });
 document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const el = e.target; if (!(el instanceof HTMLInputElement)) return;
@@ -144,13 +160,13 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.1';
-const CACHE_VERSION = 'mydiag-v9-1'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.2';
+const CACHE_VERSION = 'mydiag-v9-2'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
 
-let db = { copro: {}, docs: [], vmc: {}, chaufCol: {}, ecsCol: {}, appts: [], chaufs: [], ecss: [], murs: [], fens: [], modelesFens: [], portes: [], plfs: [], plas: [] };
+let db = { copro: {}, docs: [], vmc: {}, chaufCol: {}, ecsCol: {}, appts: [], chaufs: [], ecss: [], murs: [], fens: [], modelesFens: [], portes: [], plfs: [], plas: [], pieces: [], calques: {} };
 let tempPhotos = { chauf: {}, ecs: {} };
 let expAppts = {};
 const accOuverts = new Set();
@@ -164,7 +180,7 @@ let vueActive = 'accueil';
 let swReady = false;
 
 function normaliserDb() {
-    const defauts = { copro: {}, docs: [], vmc: {}, chaufCol: {}, ecsCol: {}, appts: [], chaufs: [], ecss: [], murs: [], fens: [], modelesFens: [], portes: [], plfs: [], plas: [] };
+    const defauts = { copro: {}, docs: [], vmc: {}, chaufCol: {}, ecsCol: {}, appts: [], chaufs: [], ecss: [], murs: [], fens: [], modelesFens: [], portes: [], plfs: [], plas: [], pieces: [], calques: {} };
     for (const k in defauts) if (db[k] == null) db[k] = defauts[k];
 }
 
@@ -275,14 +291,14 @@ window.addEventListener('pagehide', flushSauvegarde);
    ========================================================================== */
 const ZONES = [
     { id: 'accueil', ico: '🏠', lbl: 'Accueil', vues: [{ id: 'accueil', lbl: 'Accueil' }] },
-    { id: 'dossier', ico: '📁', lbl: 'Dossier', vues: [{ id: 'copro', lbl: '🏢 Copro' }, { id: 'appts', lbl: '🚪 Lots' }] },
+    { id: 'dossier', ico: '📁', lbl: 'Dossier', vues: [{ id: 'copro', lbl: '🏢 Copro' }, { id: 'appts', lbl: '🚪 Lots' }, { id: 'pieces', lbl: '📐 Pièces' }, { id: 'calque', lbl: '📄 Calque' }] },
     { id: 'parois', ico: '🧱', lbl: 'Parois', vues: [{ id: 'murs', lbl: '🧱 Murs' }, { id: 'fen', lbl: '🪟 Fenêtres' }, { id: 'portes', lbl: '🚪 Portes' }, { id: 'plafonds', lbl: '🔝 Plafonds' }, { id: 'planchers', lbl: '🔽 Planchers' }] },
     { id: 'synthese', ico: '📊', lbl: 'Synthèse', vues: [{ id: 'recapfen', lbl: '🪟 Récap fenêtres' }, { id: 'bim', lbl: '🏗️ Schéma' }, { id: 'totaux', lbl: '🧮 Totaux' }] },
     { id: 'plus', ico: '⋯', lbl: 'Plus', vues: [{ id: 'bureau', lbl: '🖥️ Mode Bureau' }, { id: 'export', lbl: '📤 Export' }, { id: 'aide', lbl: '❓ Aide' }] }
 ];
 const ZONE_PAR_VUE = {}; ZONES.forEach(z => z.vues.forEach(v => { ZONE_PAR_VUE[v.id] = z.id; }));
 const derniereVueZone = {};
-const VUES_PAROIS = ['murs', 'fen', 'portes', 'plafonds', 'planchers'];
+const VUES_PAROIS = ['murs', 'fen', 'portes', 'plafonds', 'planchers', 'pieces'];
 
 function construireNavigation() {
     $('nav-zones').innerHTML = ZONES.map(z => `<div class="nav-zone" data-zone="${z.id}" role="button"><span class="nz-ico">${z.ico}</span>${z.lbl}</div>`).join('');
@@ -312,6 +328,7 @@ function goTab(tabId, opts = {}) {
     if (tabId === 'accueil') updateDashboard();
     if (tabId === 'appts') renderApptsList();
     if (tabId === 'aide') majStatutHorsLigne();
+    if (tabId === 'calque') ouvrirCalque();
     if (tabId === 'recapfen') renderRecapFens();
     if (tabId === 'bim') renderBIM();
     if (tabId === 'totaux') renderTotauxTable();
@@ -319,6 +336,7 @@ function goTab(tabId, opts = {}) {
     if (VUES_PAROIS.includes(tabId)) {
         resetEditParoi(); verifierAptActif(tabId); renderElementsList(tabId);
         if (tabId === 'murs') { drawCroquis(); majResumeIso(); }
+        if (tabId === 'pieces') { renderChipsPieces(); majApercuPiece(); assemblerPieces(false); dessinerPlanPieces(); }
     }
     majBarreAction();
 }
@@ -658,7 +676,7 @@ function dupAppt(id) {
     if (src.surfs) newApt.surfs = JSON.parse(JSON.stringify(src.surfs)); if (src.plans) newApt.plans = { ...src.plans };
     db.appts.push(newApt);
     const cloneItems = (arrName, fk) => { db[arrName].filter(x => x[fk] === id).forEach(item => db[arrName].push({ ...item, id: Date.now() + Math.random(), [fk]: newId })); };
-    cloneItems('murs', 'aid'); cloneItems('fens', 'aid'); cloneItems('portes', 'aid'); cloneItems('plfs', 'aid'); cloneItems('plas', 'aid'); cloneItems('chaufs', 'aptId'); cloneItems('ecss', 'aptId');
+    cloneItems('murs', 'aid'); cloneItems('fens', 'aid'); cloneItems('portes', 'aid'); cloneItems('plfs', 'aid'); cloneItems('plas', 'aid'); cloneItems('pieces', 'aid'); cloneItems('chaufs', 'aptId'); cloneItems('ecss', 'aptId');
     curAppt = newId; curNivInt = 0; expAppts[newId] = true; sauvegarderLocal(); renderApptsList(); updateDashboard(); toast('Appartement dupliqué sous ' + newNumStr + ' ✓');
 }
 function toggleAppt(id) { expAppts[id] = !expAppts[id]; renderApptCard(id); }
@@ -667,7 +685,8 @@ async function suppAppt(id) {
     if (!await Dialogue.confirmer({ titre: `Supprimer le lot ${apt.num} ?`, message: 'L’appartement et toutes ses parois, systèmes et plans seront définitivement supprimés.', ok: 'Supprimer', danger: true })) return;
     db.docs = db.docs.filter(d => !d.name.startsWith(`Croquis_${apt.num}_`));
     db.appts = db.appts.filter(a => String(a.id) !== targetId);
-    ['murs', 'fens', 'portes', 'plfs', 'plas'].forEach(k => { db[k] = db[k].filter(m => String(m.aid) !== targetId); });
+    ['murs', 'fens', 'portes', 'plfs', 'plas', 'pieces'].forEach(k => { db[k] = db[k].filter(m => String(m.aid) !== targetId); });
+    Object.keys(db.calques).forEach(k => { if (k.startsWith(targetId + '_')) delete db.calques[k]; });
     db.chaufs = db.chaufs.filter(c => String(c.aptId) !== targetId); db.ecss = db.ecss.filter(e => String(e.aptId) !== targetId);
     delete tempPhotos.chauf[targetId]; delete tempPhotos.ecs[targetId]; delete expAppts[targetId];
     if (curAppt === id) curAppt = null;
@@ -727,7 +746,8 @@ function updateApptBadges(aptId) {
     const n = k => db[k].filter(x => x.aid === aptId).length;
     const myC = db.chaufs.filter(c => c.aptId === aptId).length; const myE = db.ecss.filter(e => e.aptId === aptId).length; const m = n('murs');
     const badgeSchema = (m > 2) ? '<span class="badge-elem badge-ok">📐 Plans Actifs</span>' : '<span class="badge-elem badge-warn">📐 Plan Vide</span>';
-    el.innerHTML = `<span class="badge-elem">🧱 ${m}</span> <span class="badge-elem">🪟 ${n('fens')}</span> <span class="badge-elem">🚪 ${n('portes')}</span> <span class="badge-elem">🔝 ${n('plfs')}</span> <span class="badge-elem">🔽 ${n('plas')}</span> <span class="badge-elem ${myC ? 'badge-ok' : 'badge-warn'}">🔥 ${myC}</span> <span class="badge-elem ${myE ? 'badge-ok' : 'badge-warn'}">🚿 ${myE}</span> ${badgeSchema}`;
+    const nbPieces = db.pieces.filter(p => p.aid === aptId).length;
+    el.innerHTML = `${nbPieces ? `<span class="badge-elem badge-ok">📐 ${nbPieces} pièce(s)</span> ` : ''}<span class="badge-elem">🧱 ${m}</span> <span class="badge-elem">🪟 ${n('fens')}</span> <span class="badge-elem">🚪 ${n('portes')}</span> <span class="badge-elem">🔝 ${n('plfs')}</span> <span class="badge-elem">🔽 ${n('plas')}</span> <span class="badge-elem ${myC ? 'badge-ok' : 'badge-warn'}">🔥 ${myC}</span> <span class="badge-elem ${myE ? 'badge-ok' : 'badge-warn'}">🚿 ${myE}</span> ${badgeSchema}`;
 }
 
 function ajouterChauf(aptId) {
@@ -814,6 +834,7 @@ function construireCarteAppt(a) {
             </div>
             ${plansHtml}
             <div class="appt-quick">
+                <button class="qbtn" style="color:var(--acc); border-color:#BFDBFE; background:var(--acc-l);" data-act="goParoi" data-id="${a.id}" data-vue="pieces">📐 Pièces</button>
                 <button class="qbtn" data-act="goParoi" data-id="${a.id}" data-vue="murs">🧱 Murs</button>
                 <button class="qbtn" data-act="goParoi" data-id="${a.id}" data-vue="fen">🪟 Fenêtres</button>
                 <button class="qbtn" data-act="goParoi" data-id="${a.id}" data-vue="portes">🚪 Portes</button>
@@ -911,9 +932,10 @@ const PAROIS = {
     fens:   { vue: 'fen',       list: 'list-fens',   sel: 'fen-target',  niv: 'fen-niv-container',  form: 'form-fen',       nom: 'cette fenêtre', nomF: 'Fenêtre' },
     portes: { vue: 'portes',    list: 'list-portes', sel: 'por-target',  niv: 'por-niv-container',  form: 'form-portes',    nom: 'cette porte', nomF: 'Porte' },
     plfs:   { vue: 'plafonds',  list: 'list-plfs',   sel: 'plf-target',  niv: 'plf-niv-container',  form: 'form-plafonds',  nom: 'ce plafond',  nomF: 'Plafond' },
-    plas:   { vue: 'planchers', list: 'list-plas',   sel: 'pla-target',  niv: 'pla-niv-container',  form: 'form-planchers', nom: 'ce plancher', nomF: 'Plancher' }
+    plas:   { vue: 'planchers', list: 'list-plas',   sel: 'pla-target',  niv: 'pla-niv-container',  form: 'form-planchers', nom: 'ce plancher', nomF: 'Plancher' },
+    pieces: { vue: 'pieces',    list: 'list-pieces', sel: 'pie-target',  niv: 'pie-niv-container',  form: 'form-pieces',    nom: 'cette pièce', nomF: 'Pièce' }
 };
-const TYPE_PAR_VUE = { murs: 'murs', fen: 'fens', fens: 'fens', portes: 'portes', plafonds: 'plfs', plfs: 'plfs', planchers: 'plas', plas: 'plas' };
+const TYPE_PAR_VUE = { murs: 'murs', fen: 'fens', fens: 'fens', portes: 'portes', plafonds: 'plfs', plfs: 'plfs', planchers: 'plas', plas: 'plas', pieces: 'pieces' };
 function typeParoiActif() { return TYPE_PAR_VUE[vueActive] || null; }
 
 function libelleCible() {
@@ -968,8 +990,20 @@ function verifierAptActif(tab) {
         if (type === 'murs' && !editParoiId && apt) $('m-h').value = apt.hsp || '';
     }
 }
-function changeTargetApt(val, tab) { resetEditParoi(); curAppt = val; curNivInt = 0; verifierAptActif(tab); renderElementsList(tab); if (tab === 'murs') drawCroquis(); majBarreAction(); }
-function setNivInt(i, tab) { resetEditParoi(); curNivInt = i; verifierAptActif(tab); renderElementsList(tab); if (tab === 'murs') drawCroquis(); majBarreAction(); }
+function changeTargetApt(val, tab) {
+    resetEditParoi(); curAppt = val; curNivInt = 0;
+    verifierAptActif(tab); renderElementsList(tab);
+    if (tab === 'murs') drawCroquis();
+    if (tab === 'pieces') { pieceSel = null; renderChipsPieces(); assemblerPieces(false); dessinerPlanPieces(); }
+    majBarreAction();
+}
+function setNivInt(i, tab) {
+    resetEditParoi(); curNivInt = i;
+    verifierAptActif(tab); renderElementsList(tab);
+    if (tab === 'murs') drawCroquis();
+    if (tab === 'pieces') { pieceSel = null; renderChipsPieces(); assemblerPieces(false); dessinerPlanPieces(); }
+    majBarreAction();
+}
 Actions.setNiv = d => setNivInt(parseInt(d.i), d.tab);
 
 function sauverParoi(type) {
@@ -999,6 +1033,11 @@ function sauverParoi(type) {
     } else if (type === 'plfs') {
         if (!v('p-s') && !(v('p-l') && v('p-larg'))) { toast('⚠️ Dimensions ou surface requises'); $('p-l').focus(); return; }
         el.type = v('p-type'); el.donne = v('p-donne'); el.l = v('p-l'); el.larg = v('p-larg'); el.s = v('p-s'); el.iso = v('p-iso'); el.isoEp = v('p-iso-ep');
+    } else if (type === 'pieces') {
+        if (!v('pie-l') || !v('pie-larg')) { toast('⚠️ Longueur et largeur requises'); $(v('pie-l') ? 'pie-larg' : 'pie-l').focus(); return; }
+        el.nom = v('pie-nom').trim() || ('Pièce ' + (db.pieces.filter(p => p.aid === curAppt && (p.nivInt || 0) === curNivInt).length + 1));
+        el.l = v('pie-l'); el.larg = v('pie-larg');
+        if (el.rot === undefined) el.rot = 0;
     } else if (type === 'plas') {
         if (!v('s-s') && !(v('s-l') && v('s-larg'))) { toast('⚠️ Dimensions ou surface requises'); $('s-l').focus(); return; }
         el.type = v('s-type'); el.donne = v('s-donne'); el.l = v('s-l'); el.larg = v('s-larg'); el.s = v('s-s'); el.iso = v('s-iso'); el.isoEp = v('s-iso-ep');
@@ -1015,6 +1054,11 @@ function sauverParoi(type) {
     else if (type === 'portes') { $('po-l').value = ''; $('po-h').value = ''; }
     else if (type === 'plfs') { $('p-l').value = ''; $('p-larg').value = ''; $('p-s').value = ''; }
     else if (type === 'plas') { $('s-l').value = ''; $('s-larg').value = ''; $('s-s').value = ''; }
+    else if (type === 'pieces') {
+        assemblerPieces(false);
+        $('pie-nom').value = ''; $('pie-l').value = ''; $('pie-larg').value = '';
+        renderChipsPieces(); majApercuPiece(); dessinerPlanPieces(); $('pie-nom').focus();
+    }
     toast(etaitEdition ? 'Modification enregistrée ✓' : 'Enregistré ✓ Propriétés conservées.');
 }
 function editerParoi(type, id) {
@@ -1029,17 +1073,30 @@ function editerParoi(type, id) {
         set('po-type', p.type || 'Porte opaque pleine'); set('po-mat', p.mat || 'Bois'); set('po-donne', p.donne || 'Extérieur'); set('po-iso', p.iso || 'Non isolée / Inconnue'); set('po-sas', p.sas || 'Non'); set('po-l', p.l || ''); set('po-h', p.h || '');
     } else if (type === 'plfs') {
         set('p-type', p.type); set('p-donne', p.donne); set('p-l', p.l || ''); set('p-larg', p.larg || ''); set('p-s', p.s || ''); set('p-iso', p.iso || 'Non'); set('p-iso-ep', p.isoEp || '');
+    } else if (type === 'pieces') {
+        $('pie-nom').value = p.nom || ''; $('pie-l').value = p.l || ''; $('pie-larg').value = p.larg || '';
+        renderChipsPieces(); majApercuPiece();
     } else if (type === 'plas') {
         set('s-type', p.type); set('s-donne', p.donne); set('s-l', p.l || ''); set('s-larg', p.larg || ''); set('s-s', p.s || ''); set('s-iso', p.iso || 'Non'); set('s-iso-ep', p.isoEp || '');
     }
     majBarreAction(); scrollVers(PAROIS[type].form);
 }
-function clonerParoi(type, id) { const src = db[type].find(x => String(x.id) === String(id)); if (!src) return; db[type].push({ ...src, id: Date.now() + Math.random(), nivInt: curNivInt }); sauvegarderLocal(); renderElementsList(type); if (type === 'murs') drawCroquis(); if (curAppt !== 'copro') updateApptBadges(curAppt); toast('Élément cloné ✓'); }
+function clonerParoi(type, id) {
+    const src = db[type].find(x => String(x.id) === String(id)); if (!src) return;
+    const clone = { ...src, id: Date.now() + Math.random(), nivInt: curNivInt };
+    if (type === 'pieces') { delete clone.x; delete clone.y; }   // la copie se place à côté, pas dessus
+    db[type].push(clone);
+    sauvegarderLocal(); renderElementsList(type);
+    if (type === 'murs') drawCroquis();
+    if (type === 'pieces') assemblerPieces(false);
+    if (curAppt !== 'copro') updateApptBadges(curAppt);
+    toast('Élément cloné ✓');
+}
 function suppElement(type, id) {
     const idx = db[type].findIndex(x => String(x.id) === String(id)); if (idx < 0) return;
     const item = db[type][idx]; db[type].splice(idx, 1);
     if (editParoiId === item.id) { editParoiId = null; majBarreAction(); }
-    const apres = () => { sauvegarderLocal(); renderElementsList(type); if (type === 'murs') drawCroquis(); if (curAppt !== 'copro') updateApptBadges(curAppt); updateDashboard(); };
+    const apres = () => { sauvegarderLocal(); renderElementsList(type); if (type === 'murs') drawCroquis(); if (type === 'pieces') { pieceSel = null; dessinerPlanPieces(); } if (curAppt !== 'copro') updateApptBadges(curAppt); updateDashboard(); };
     apres();
     toastAnnuler('Élément supprimé', () => { db[type].splice(idx, 0, item); apres(); });
 }
@@ -1050,6 +1107,7 @@ Actions.suppElement = d => suppElement(d.type, d.id);
 function renderElementsList(tabId) {
     if (!curAppt) curAppt = 'copro';
     const type = TYPE_PAR_VUE[tabId]; if (!type) return; const cont = $(PAROIS[type].list); const data = db[type];
+    if (type === 'pieces') return renderListePieces(cont);
     cont.innerHTML = data.filter(x => x.aid === curAppt && (x.nivInt || 0) === curNivInt).map(x => {
         let dimText = ''; let titleText = x.mat || x.type;
         if (type === 'fens') {
@@ -1343,6 +1401,708 @@ async function exporterCroquis() {
 }
 
 /* ==========================================================================
+   7 bis. SAISIE PAR PIÈCES ET PLAN ASSEMBLÉ
+   On mesure une pièce (longueur × largeur), pas un mur : la surface habitable
+   s'additionne toute seule et les pièces sont assemblées en un plan de lot,
+   ajustable au doigt. Coordonnées et dimensions sont en mètres.
+   ========================================================================== */
+const PIECES_COURANTES = ['Séjour', 'Cuisine', 'Chambre', 'Salle de bains', 'WC', 'Dégagement', 'Entrée', 'Bureau', 'Cellier'];
+let pieceSel = null;              // pièce sélectionnée sur le plan
+let planDrag = null;              // déplacement en cours
+
+const dimsPiece = p => { const L = parseFloat(p.l) || 0, la = parseFloat(p.larg) || 0; return p.rot ? { w: la, h: L } : { w: L, h: la }; };
+const surfacePiece = p => (parseFloat(p.l) || 0) * (parseFloat(p.larg) || 0);
+const piecesCourantes = () => db.pieces.filter(p => p.aid === curAppt && (p.nivInt || 0) === curNivInt);
+
+function renderChipsPieces() {
+    const cont = $('piece-chips'); if (!cont) return;
+    const actuel = ($('pie-nom').value || '').trim().toLowerCase();
+    // Les chambres se numérotent d'elles-mêmes : Chambre, Chambre 2, Chambre 3…
+    const suivant = nom => {
+        const memes = piecesCourantes().filter(p => (p.nom || '').startsWith(nom));
+        return memes.length ? `${nom} ${memes.length + 1}` : nom;
+    };
+    cont.innerHTML = PIECES_COURANTES.map(n => {
+        const propose = suivant(n);
+        return `<button type="button" class="piece-chip ${actuel === propose.toLowerCase() ? 'on' : ''}" data-act="chipPiece" data-nom="${esc(propose)}">${esc(propose)}</button>`;
+    }).join('');
+}
+Actions.chipPiece = d => { $('pie-nom').value = d.nom; renderChipsPieces(); $('pie-l').focus(); };
+
+function majApercuPiece() {
+    const el = $('pie-apercu'); if (!el) return;
+    const L = parseFloat($('pie-l').value) || 0, la = parseFloat($('pie-larg').value) || 0;
+    el.innerHTML = (L > 0 && la > 0) ? `Surface de la pièce : <b>${(L * la).toFixed(2)} m²</b>` : '';
+}
+
+function renderListePieces(cont) {
+    const liste = piecesCourantes();
+    const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
+    const info = $('pie-total');
+    if (info) info.textContent = liste.length ? `${liste.length} pièce(s) · ${total.toFixed(2)} m²` : '';
+    cont.innerHTML = liste.map(p => `
+        <div class="item-row ${pieceSel === p.id ? 'piece-row-sel' : ''}">
+            <div style="flex:1; padding-right:12px; min-width:0;">
+                <div style="margin-bottom:4px;"><b style="font-size:15px; color:var(--tx);">${esc(p.nom || 'Pièce')}</b></div>
+                <div style="color:var(--tx2); font-size:12px; line-height:1.5;">${esc(p.l)} × ${esc(p.larg)} m${p.rot ? ' · pivotée' : ''}</div>
+                <div style="color:var(--acc); font-size:13px; font-weight:800; margin-top:3px;">${surfacePiece(p).toFixed(2)} m²</div>
+            </div>
+            <div class="item-actions">
+                <button class="ico-btn ok" title="Dupliquer" data-act="clonerParoi" data-type="pieces" data-id="${p.id}">🔄</button>
+                <button class="ico-btn acc" title="Modifier" data-act="editerParoi" data-type="pieces" data-id="${p.id}">✏️</button>
+                <button class="ico-btn dan" title="Supprimer" data-act="suppElement" data-type="pieces" data-id="${p.id}">❌</button>
+            </div>
+        </div>`).join('');
+}
+
+/* --- Assemblage : rangées successives, largeur cible proche d'un carré --- */
+function assemblerPieces(tout) {
+    const liste = piecesCourantes(); if (!liste.length) return;
+    const aPlacer = tout ? [...liste].sort((a, b) => surfacePiece(b) - surfacePiece(a)) : liste.filter(p => p.x === undefined || p.y === undefined);
+    if (!aPlacer.length) { dessinerPlanPieces(); return; }
+    const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
+    const maxW = Math.max(...aPlacer.map(p => dimsPiece(p).w), 1);
+    const cible = Math.max(Math.sqrt(total * 1.3), maxW);
+
+    let x0 = 0, y0 = 0;
+    if (!tout) {
+        // Les nouvelles pièces se posent sous l'assemblage existant, sans le déranger.
+        const placees = liste.filter(p => p.x !== undefined && p.y !== undefined);
+        if (placees.length) {
+            x0 = Math.min(...placees.map(p => p.x));
+            y0 = Math.max(...placees.map(p => p.y + dimsPiece(p).h));
+        }
+    }
+    let x = x0, y = y0, hRangee = 0;
+    aPlacer.forEach(p => {
+        const d = dimsPiece(p);
+        if (x > x0 && (x - x0) + d.w > cible) { x = x0; y += hRangee; hRangee = 0; }
+        p.x = Math.round(x * 100) / 100; p.y = Math.round(y * 100) / 100;
+        x += d.w; hRangee = Math.max(hRangee, d.h);
+    });
+    sauvegarderLocal(); dessinerPlanPieces();
+    if (tout) toast('Pièces réassemblées ✓');
+}
+
+function pivoterPieceSel() {
+    const liste = piecesCourantes();
+    const p = liste.find(x => x.id === pieceSel) || liste[liste.length - 1];
+    if (!p) { toast('Aucune pièce à pivoter'); return; }
+    p.rot = p.rot ? 0 : 1; pieceSel = p.id;
+    sauvegarderLocal(); dessinerPlanPieces(); renderElementsList('pieces');
+    toast(`${p.nom || 'Pièce'} pivotée`);
+}
+
+/* --- Dessin du plan assemblé --- */
+let planVue = null;   // repère courant (échelle et décalage) pour la conversion écran ↔ mètres
+function dessinerPlanPieces() {
+    const canvas = $('plan-canvas'); const cont = $('plan-container'); if (!canvas || !cont) return;
+    const liste = piecesCourantes();
+    if (!liste.length) { cont.style.display = 'none'; planVue = null; return; }
+    cont.style.display = 'block';
+
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const rect = canvas.getBoundingClientRect();
+    const cw = rect.width || 340, ch = rect.height || 300;
+    canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cw, ch);
+
+    const placees = liste.filter(p => p.x !== undefined && p.y !== undefined);
+    if (!placees.length) { assemblerPieces(false); return; }
+    const minX = Math.min(...placees.map(p => p.x)), minY = Math.min(...placees.map(p => p.y));
+    const maxX = Math.max(...placees.map(p => p.x + dimsPiece(p).w)), maxY = Math.max(...placees.map(p => p.y + dimsPiece(p).h));
+    const pad = 26;
+    const ech = Math.min((cw - pad * 2) / Math.max(maxX - minX, 0.5), (ch - pad * 2) / Math.max(maxY - minY, 0.5));
+    const dx = (cw - (maxX - minX) * ech) / 2, dy = (ch - (maxY - minY) * ech) / 2;
+    planVue = { ech, dx, dy, minX, minY };
+    const px = mx => dx + (mx - minX) * ech, py = my => dy + (my - minY) * ech;
+
+    // Contour extérieur du logement, tracé sous les pièces
+    const contour = contourPieces(placees);
+    if (contour.length > 2) {
+        ctx.beginPath();
+        contour.forEach((p, i) => { const X = px(p.x), Y = py(p.y); i === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); });
+        ctx.closePath(); ctx.fillStyle = 'rgba(37,99,235,0.06)'; ctx.fill();
+        ctx.lineWidth = 5; ctx.strokeStyle = '#1E293B'; ctx.lineJoin = 'round'; ctx.stroke();
+    }
+
+    placees.forEach(p => {
+        const d = dimsPiece(p);
+        const X = px(p.x), Y = py(p.y), W = d.w * ech, H = d.h * ech;
+        const actif = pieceSel === p.id;
+        ctx.fillStyle = actif ? '#DBEAFE' : '#FFFFFF';
+        ctx.fillRect(X, Y, W, H);
+        ctx.lineWidth = actif ? 3 : 1.5; ctx.strokeStyle = actif ? '#2563EB' : '#94A3B8';
+        ctx.strokeRect(X, Y, W, H);
+        // Nom et surface, seulement si la case est assez grande
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#0F172A';
+        if (W > 46 && H > 30) {
+            ctx.font = 'bold 11px sans-serif';
+            const nom = String(p.nom || 'Pièce');
+            const court = ctx.measureText(nom).width > W - 8 ? nom.slice(0, Math.max(3, Math.floor((W - 8) / 6))) + '…' : nom;
+            ctx.fillText(court, X + W / 2, Y + H / 2 - 7);
+            ctx.font = '10px sans-serif'; ctx.fillStyle = '#2563EB';
+            ctx.fillText(surfacePiece(p).toFixed(1) + ' m²', X + W / 2, Y + H / 2 + 7);
+        } else if (W > 24 && H > 16) {
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText(surfacePiece(p).toFixed(1), X + W / 2, Y + H / 2);
+        }
+    });
+
+    const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
+    const emprise = (maxX - minX).toFixed(1) + ' × ' + (maxY - minY).toFixed(1) + ' m';
+    $('plan-msg').innerHTML = `Surface des pièces : <b>${total.toFixed(2)} m²</b><br><span style="font-size:12px;">Emprise ${emprise} · glissez une pièce pour l’ajuster</span>`;
+}
+window.addEventListener('resize', debounce(() => { if (vueActive === 'pieces') dessinerPlanPieces(); }, 150));
+
+/* --- Déplacement des pièces au doigt, avec aimantation --- */
+function pointPlan(e) {
+    const canvas = $('plan-canvas'); const r = canvas.getBoundingClientRect();
+    if (!planVue) return null;
+    return { x: planVue.minX + (e.clientX - r.left - planVue.dx) / planVue.ech, y: planVue.minY + (e.clientY - r.top - planVue.dy) / planVue.ech };
+}
+function brancherPlanPieces() {
+    const canvas = $('plan-canvas'); if (!canvas) return;
+    canvas.addEventListener('pointerdown', e => {
+        const pt = pointPlan(e); if (!pt) return;
+        const trouvee = [...piecesCourantes()].reverse().find(p => { const d = dimsPiece(p); return pt.x >= p.x && pt.x <= p.x + d.w && pt.y >= p.y && pt.y <= p.y + d.h; });
+        pieceSel = trouvee ? trouvee.id : null;
+        if (trouvee) { planDrag = { id: trouvee.id, dx: pt.x - trouvee.x, dy: pt.y - trouvee.y }; canvas.setPointerCapture(e.pointerId); }
+        dessinerPlanPieces(); renderElementsList('pieces');
+    });
+    canvas.addEventListener('pointermove', e => {
+        if (!planDrag) return;
+        const pt = pointPlan(e); if (!pt) return;
+        const p = piecesCourantes().find(x => x.id === planDrag.id); if (!p) return;
+        p.x = aimanter(pt.x - planDrag.dx, p, 'x'); p.y = aimanter(pt.y - planDrag.dy, p, 'y');
+        dessinerPlanPieces();
+    });
+    const fin = () => { if (planDrag) { planDrag = null; sauvegarderLocal(); dessinerPlanPieces(); } };
+    canvas.addEventListener('pointerup', fin);
+    canvas.addEventListener('pointercancel', fin);
+}
+// Aimante le bord de la pièce déplacée sur les bords des autres, sinon sur une trame de 5 cm.
+function aimanter(valeur, piece, axe) {
+    const SEUIL = 0.3;
+    const d = dimsPiece(piece); const taille = axe === 'x' ? d.w : d.h;
+    const bords = [];
+    piecesCourantes().forEach(p => {
+        if (p.id === piece.id) return;
+        const dp = dimsPiece(p);
+        bords.push(axe === 'x' ? p.x : p.y, axe === 'x' ? p.x + dp.w : p.y + dp.h);
+    });
+    let meilleur = null, ecart = SEUIL;
+    bords.forEach(b => {
+        [b, b - taille].forEach(cand => { const e = Math.abs(cand - valeur); if (e < ecart) { ecart = e; meilleur = cand; } });
+    });
+    return Math.round((meilleur !== null ? meilleur : valeur) * 20) / 20;
+}
+
+/* --- Contour extérieur de l'ensemble des pièces ---
+   Grille non uniforme bâtie sur les arêtes des pièces : exacte, et petite.
+   Chaque cellule occupée fournit ses arêtes de bord, que l'on chaîne en boucle. */
+function contourPieces(pieces) {
+    const placees = pieces.filter(p => p.x !== undefined && p.y !== undefined);
+    if (!placees.length) return [];
+    const xs = [...new Set(placees.flatMap(p => [p.x, p.x + dimsPiece(p).w]))].sort((a, b) => a - b);
+    const ys = [...new Set(placees.flatMap(p => [p.y, p.y + dimsPiece(p).h]))].sort((a, b) => a - b);
+    const nx = xs.length - 1, ny = ys.length - 1;
+    if (nx < 1 || ny < 1) return [];
+    const couvert = (i, j) => {
+        if (i < 0 || j < 0 || i >= nx || j >= ny) return false;
+        const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+        return placees.some(p => { const d = dimsPiece(p); return cx > p.x && cx < p.x + d.w && cy > p.y && cy < p.y + d.h; });
+    };
+    const cle = p => p.x.toFixed(3) + ';' + p.y.toFixed(3);
+    const depuis = new Map();
+    const ajouter = (a, b) => { const k = cle(a); if (!depuis.has(k)) depuis.set(k, []); depuis.get(k).push(b); };
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+        if (!couvert(i, j)) continue;
+        const x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1];
+        if (!couvert(i, j - 1)) ajouter({ x: x0, y: y0 }, { x: x1, y: y0 });
+        if (!couvert(i + 1, j)) ajouter({ x: x1, y: y0 }, { x: x1, y: y1 });
+        if (!couvert(i, j + 1)) ajouter({ x: x1, y: y1 }, { x: x0, y: y1 });
+        if (!couvert(i - 1, j)) ajouter({ x: x0, y: y1 }, { x: x0, y: y0 });
+    }
+    // Chaînage en boucles ; on garde la plus longue (le contour extérieur).
+    const boucles = [];
+    const restant = new Map([...depuis].map(([k, v]) => [k, [...v]]));
+    for (const depart of [...restant.keys()]) {
+        while ((restant.get(depart) || []).length) {
+            const boucle = []; let courant = depart; let garde = 0;
+            while (garde++ < 20000) {
+                const suites = restant.get(courant);
+                if (!suites || !suites.length) break;
+                const suivant = suites.shift();
+                boucle.push(suivant);
+                courant = cle(suivant);
+                if (courant === depart) break;
+            }
+            if (boucle.length > 2) boucles.push(boucle);
+        }
+    }
+    if (!boucles.length) return [];
+    const perim = b => b.reduce((s, p, i) => s + Math.hypot(p.x - b[(i + 1) % b.length].x, p.y - b[(i + 1) % b.length].y), 0);
+    const boucle = boucles.sort((a, b) => perim(b) - perim(a))[0];
+    // Suppression des points alignés
+    const simple = [];
+    for (let i = 0; i < boucle.length; i++) {
+        const a = boucle[(i - 1 + boucle.length) % boucle.length], b = boucle[i], c = boucle[(i + 1) % boucle.length];
+        const colineaire = Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < 1e-6;
+        if (!colineaire) simple.push(b);
+    }
+    return simple.length > 2 ? simple : boucle;
+}
+
+/* --- Actions du plan --- */
+function appliquerSurfacePieces() {
+    const liste = piecesCourantes();
+    if (!liste.length) { toast('Aucune pièce saisie'); return; }
+    const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
+    if (curAppt === 'copro') {
+        db.copro.surfcommuns = total.toFixed(2);
+        const input = $('copro-surfcommuns'); if (input) input.value = db.copro.surfcommuns;
+        sauvegarderLocal(); updateDashboard(); toast(`Surface (${total.toFixed(2)} m²) affectée aux parties communes ✓`);
+        return;
+    }
+    const apt = db.appts.find(a => a.id === curAppt); if (!apt) return;
+    apt.surfs = apt.surfs || {}; apt.surfs[curNivInt] = total;
+    apt.surf = Object.values(apt.surfs).reduce((s, v) => s + v, 0).toFixed(1);
+    sauvegarderLocal(); renderApptsList(); updateDashboard();
+    toast(`Surface N${curNivInt} (${total.toFixed(2)} m²) appliquée au lot ${apt.num} · total ${apt.surf} m²`);
+}
+async function enregistrerPlanPieces() {
+    const canvas = $('plan-canvas');
+    if (!canvas || !piecesCourantes().length) { toast('Aucun plan à enregistrer'); return; }
+    const b64 = canvas.toDataURL('image/png');
+    if (curAppt === 'copro') {
+        await upsertDoc('Plan_Copro_PartiesCommunes.png', b64);
+        sauvegarderLocal(); renderDocs(); toast('Plan des parties communes enregistré 📁'); return;
+    }
+    const apt = db.appts.find(a => a.id === curAppt); if (!apt) return;
+    apt.plans = apt.plans || {};
+    apt.plans[curNivInt] = await upsertDoc(`Plan_${apt.num}_N${curNivInt}.png`, b64);
+    sauvegarderLocal(); renderDocs(); renderApptsList();
+    toast(`Plan du lot ${apt.num} enregistré 📁`);
+}
+async function genererMursDepuisPieces() {
+    const liste = piecesCourantes();
+    const contour = contourPieces(liste);
+    if (contour.length < 3) { toast('Assemblez au moins deux pièces pour tracer un contour'); return; }
+    const apt = db.appts.find(a => a.id === curAppt);
+    const hauteur = (apt && apt.hsp) || $('m-h').value || '';
+    if (!await Dialogue.confirmer({
+        titre: 'Générer les murs de façade',
+        message: `${contour.length} mur(s) seront créés à partir du contour extérieur des pièces${hauteur ? `, avec une hauteur de ${hauteur} m` : ''}.\n\nLeur matériau et leur isolation restent à compléter.`,
+        ok: 'Générer'
+    })) return;
+    const crees = creerMursDepuisContour(contour, hauteur);
+    toast(`${crees} mur(s) de façade générés — complétez matériau et isolation ✏️`);
+}
+// Fabrique un mur par segment du contour, en conservant le vecteur pour que
+// le croquis redessine exactement la forme relevée.
+function creerMursDepuisContour(contour, hauteur) {
+    let n = 0;
+    for (let i = 0; i < contour.length; i++) {
+        const a = contour[i], b = contour[(i + 1) % contour.length];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const l = Math.hypot(dx, dy);
+        if (l < 0.05) continue;
+        const ori = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'Nord' : 'Sud') : (dy >= 0 ? 'Est' : 'Ouest');
+        db.murs.push({ id: Date.now() + Math.random(), aid: curAppt, nivInt: curNivInt, ori, donne: 'Extérieur', mat: 'Inconnu', l: l.toFixed(2), h: String(hauteur || ''), ep: '', iso: 'Non', isoEp: '', doub: 'ABSENT', vectX: dx, vectY: dy });
+        n++;
+    }
+    sauvegarderLocal(); updateDashboard();
+    if (curAppt !== 'copro') updateApptBadges(curAppt);
+    return n;
+}
+
+/* ==========================================================================
+   7 ter. CALQUE SUR UN PLAN EXISTANT
+   Le plan du syndic (PDF ou photo) sert de fond : on donne l'échelle en
+   pointant une cote connue, puis on suit le contour au doigt. Surface,
+   périmètre et murs de façade en découlent.
+   Les points sont stockés en pixels de l'image ; l'échelle est en mètres/pixel.
+   ========================================================================== */
+let cal = { media: null, img: null, echelle: 0, pts: [], calib: [], mode: 'tracer', zoom: 1, ox: 0, oy: 0, pdfDoc: null, page: 1, nbPages: 1 };
+let calPointers = new Map(), calDrag = null, calPinch = null;
+
+const cleCalque = () => `${curAppt || 'copro'}_${curNivInt}`;
+
+function ouvrirCalque() {
+    renderCibleCalque();
+    chargerEtatCalque();
+}
+function renderCibleCalque() {
+    const sel = $('cal-target'); if (!sel) return;
+    let html = `<option value="copro">🏢 Copropriété (Parties Communes)</option>`;
+    db.appts.forEach(a => { const t = a.type === 2 ? ' (Duplex)' : a.type === 3 ? ' (Triplex)' : ''; html += `<option value="${a.id}">Lot : ${esc(a.num)}${t}</option>`; });
+    sel.innerHTML = html;
+    if (!curAppt || (curAppt !== 'copro' && !db.appts.some(a => a.id === curAppt))) curAppt = 'copro';
+    sel.value = curAppt;
+    const nivCont = $('cal-niv-container'); if (!nivCont) return;
+    const apt = db.appts.find(a => a.id === curAppt);
+    if (apt && apt.type > 1) {
+        let html2 = '<div class="niv-row">';
+        for (let i = 0; i < apt.type; i++) {
+            const lbl = i === 0 ? 'Niveau Bas' : i === 1 ? (apt.type === 3 ? 'Niveau Inter.' : 'Niveau Haut') : 'Niveau Haut';
+            html2 += `<button class="niv-btn ${curNivInt === i ? 'niv-on' : 'niv-off'}" data-act="calNiv" data-i="${i}">${lbl}</button>`;
+        }
+        nivCont.innerHTML = html2 + '</div>';
+    } else { curNivInt = 0; nivCont.innerHTML = ''; }
+}
+Actions.calNiv = d => { curNivInt = parseInt(d.i); renderCibleCalque(); chargerEtatCalque(); };
+function changerCibleCalque(val) { curAppt = val; curNivInt = 0; renderCibleCalque(); chargerEtatCalque(); }
+
+function chargerEtatCalque() {
+    const etat = db.calques[cleCalque()];
+    cal.pts = []; cal.calib = []; cal.echelle = 0; cal.img = null; cal.media = null; cal.mode = 'tracer';
+    cal.zoom = 1; cal.ox = 0; cal.oy = 0; cal.pdfDoc = null; cal.page = 1; cal.nbPages = 1; cal.chargement = false;
+    if (etat && etat.media) {
+        cal.media = etat.media; cal.echelle = etat.echelle || 0; cal.pts = (etat.pts || []).map(p => ({ ...p }));
+        const src = Medias.src(etat.media);
+        if (src) {
+            // Le décodage de l'image est asynchrone : on l'annonce, sinon l'écran
+            // afficherait « aucun plan » alors que l'échelle et le tracé sont là.
+            cal.chargement = true;
+            const img = new Image();
+            img.onload = () => { cal.img = img; cal.chargement = false; recentrerCalque(); majInterfaceCalque(); };
+            img.onerror = () => { cal.chargement = false; majInterfaceCalque(); toast('⚠️ Plan du calque introuvable'); };
+            img.src = src;
+        }
+    }
+    majInterfaceCalque(); dessinerCalque();
+}
+function sauverEtatCalque() {
+    if (!cal.media) { delete db.calques[cleCalque()]; }
+    else db.calques[cleCalque()] = { media: cal.media, echelle: cal.echelle, pts: cal.pts.map(p => ({ ...p })) };
+    sauvegarderLocal();
+}
+
+/* --- Chargement d'un plan : PDF (via pdf.js) ou photo --- */
+function chargerPlanCalque() { Plateforme.demanderFichier('calque-uploader'); }
+function brancherCalque() {
+    const input = $('calque-uploader');
+    if (input) input.onchange = async e => {
+        const file = e.target.files[0]; e.target.value = '';
+        if (!file) return;
+        try {
+            if (file.type === 'application/pdf') await chargerPdfCalque(file);
+            else await chargerImageCalque(file);
+        } catch (err) {
+            console.error('Plan illisible', err);
+            toast('⚠️ Plan illisible : ' + (err.message || 'format non pris en charge'), { duree: 5000 });
+        }
+    };
+    const canvas = $('calque-canvas'); if (!canvas) return;
+    canvas.addEventListener('pointerdown', calPointerDown);
+    canvas.addEventListener('pointermove', calPointerMove);
+    canvas.addEventListener('pointerup', calPointerUp);
+    canvas.addEventListener('pointercancel', calPointerUp);
+    window.addEventListener('resize', debounce(() => { if (vueActive === 'calque') dessinerCalque(); }, 150));
+}
+async function chargerImageCalque(file) {
+    const dataURL = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataURL; });
+    // Redimensionnement : au-delà de 2000 px, le confort de tracé ne gagne rien et la mémoire souffre.
+    const MAX = 2000; const ech = Math.min(1, MAX / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * ech); c.height = Math.round(img.height * ech);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    await poserImageCalque(c.toDataURL('image/jpeg', 0.85));
+    toast('Plan chargé — calibrez sur une cote connue 📏');
+}
+async function chargerPdfCalque(file) {
+    if (!await assurerLib('pdfjsLib', 'lib/pdf.min.js')) return;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+    const buf = await file.arrayBuffer();
+    cal.pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+    cal.nbPages = cal.pdfDoc.numPages; cal.page = 1;
+    await rendrePagePdf();
+    toast(cal.nbPages > 1 ? `Plan chargé (page 1 sur ${cal.nbPages}) — calibrez 📏` : 'Plan chargé — calibrez sur une cote connue 📏');
+}
+async function rendrePagePdf() {
+    const page = await cal.pdfDoc.getPage(cal.page);
+    const base = page.getViewport({ scale: 1 });
+    const ech = Math.min(2200 / Math.max(base.width, base.height), 3);
+    const viewport = page.getViewport({ scale: ech });
+    const c = document.createElement('canvas');
+    c.width = Math.round(viewport.width); c.height = Math.round(viewport.height);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    await poserImageCalque(c.toDataURL('image/jpeg', 0.9));
+}
+async function poserImageCalque(dataURL) {
+    if (cal.media) await Medias.supprimer(cal.media);
+    cal.media = await Medias.ajouter(dataURL);
+    cal.pts = []; cal.calib = []; cal.echelle = 0; cal.mode = 'calibrer';
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = Medias.src(cal.media); });
+    cal.img = img;
+    recentrerCalque(); sauverEtatCalque(); majInterfaceCalque();
+}
+async function pageSuivanteCalque() {
+    if (!cal.pdfDoc) { toast('Rechargez le PDF pour changer de page'); return; }
+    cal.page = cal.page % cal.nbPages + 1;
+    await rendrePagePdf();
+    toast(`Page ${cal.page} sur ${cal.nbPages}`);
+}
+
+/* --- Repère : conversion écran ↔ pixels de l'image --- */
+function tailleCalque() { const c = $('calque-canvas'); const r = c.getBoundingClientRect(); return { w: r.width || 340, h: r.height || 380, r }; }
+function recentrerCalque() {
+    if (!cal.img) return;
+    const { w, h } = tailleCalque();
+    cal.zoom = Math.min(w / cal.img.width, h / cal.img.height);
+    cal.ox = (w - cal.img.width * cal.zoom) / 2;
+    cal.oy = (h - cal.img.height * cal.zoom) / 2;
+    dessinerCalque();
+}
+function zoomCalque(facteur, cx, cy) {
+    if (!cal.img) return;
+    const { w, h } = tailleCalque();
+    if (cx === undefined) { cx = w / 2; cy = h / 2; }
+    const avant = cal.zoom;
+    cal.zoom = Math.max(0.05, Math.min(cal.zoom * facteur, 30));
+    const k = cal.zoom / avant;
+    cal.ox = cx - (cx - cal.ox) * k; cal.oy = cy - (cy - cal.oy) * k;
+    dessinerCalque();
+}
+const versImage = (sx, sy) => ({ x: (sx - cal.ox) / cal.zoom, y: (sy - cal.oy) / cal.zoom });
+const versEcran = p => ({ x: p.x * cal.zoom + cal.ox, y: p.y * cal.zoom + cal.oy });
+
+function calPointerDown(e) {
+    if (!cal.img) return;
+    const { r } = tailleCalque();
+    calPointers.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+    $('calque-canvas').setPointerCapture(e.pointerId);
+    if (calPointers.size === 2) {
+        const [a, b] = [...calPointers.values()];
+        calPinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) };
+        calDrag = null;
+    } else if (calPointers.size === 1) {
+        calDrag = { depart: { x: e.clientX - r.left, y: e.clientY - r.top }, bouge: false, ox: cal.ox, oy: cal.oy };
+    }
+}
+function calPointerMove(e) {
+    if (!cal.img || !calPointers.has(e.pointerId)) return;
+    const { r } = tailleCalque();
+    const pos = { x: e.clientX - r.left, y: e.clientY - r.top };
+    calPointers.set(e.pointerId, pos);
+    if (calPinch && calPointers.size === 2) {
+        const [a, b] = [...calPointers.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (calPinch.dist > 4) zoomCalque(d / calPinch.dist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        calPinch.dist = d;
+        return;
+    }
+    if (!calDrag) return;
+    const dx = pos.x - calDrag.depart.x, dy = pos.y - calDrag.depart.y;
+    // Au-delà de 8 px, le geste est un déplacement, pas un pointage.
+    if (!calDrag.bouge && Math.hypot(dx, dy) > 8) calDrag.bouge = true;
+    if (calDrag.bouge) { cal.ox = calDrag.ox + dx; cal.oy = calDrag.oy + dy; dessinerCalque(); }
+}
+function calPointerUp(e) {
+    calPointers.delete(e.pointerId);
+    if (calPointers.size < 2) calPinch = null;
+    if (!calDrag) return;
+    const drag = calDrag; calDrag = null;
+    if (drag.bouge || !cal.img) return;
+    poserPointCalque(versImage(drag.depart.x, drag.depart.y));
+}
+async function poserPointCalque(p) {
+    if (cal.mode === 'calibrer') {
+        cal.calib.push(p);
+        dessinerCalque();
+        if (cal.calib.length === 2) {
+            const pix = Math.hypot(cal.calib[1].x - cal.calib[0].x, cal.calib[1].y - cal.calib[0].y);
+            const m = await Dialogue.saisir({ titre: 'Longueur réelle', message: 'Quelle est la distance réelle entre les deux points pointés ?', unite: 'mètres', valeur: '' });
+            if (m && parseFloat(m) > 0 && pix > 2) {
+                cal.echelle = parseFloat(m) / pix;
+                cal.mode = 'tracer';
+                toast(`Échelle réglée sur ${m} m ✓ Tracez maintenant le contour`, { duree: 3500 });
+                sauverEtatCalque();
+            } else { toast('Calibrage abandonné'); }
+            cal.calib = [];
+            majInterfaceCalque();
+        }
+        dessinerCalque();
+        return;
+    }
+    cal.pts.push(p);
+    sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+}
+function lancerCalibrage() {
+    if (!cal.img) { toast('Chargez d’abord un plan'); return; }
+    cal.mode = 'calibrer'; cal.calib = [];
+    toast('Pointez les deux extrémités d’une cote connue', { duree: 4000 });
+    majInterfaceCalque(); dessinerCalque();
+}
+function annulerDernierPoint() {
+    if (cal.mode === 'calibrer' && cal.calib.length) { cal.calib.pop(); dessinerCalque(); return; }
+    if (!cal.pts.length) { toast('Aucun point à annuler'); return; }
+    cal.pts.pop(); sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+}
+async function effacerTrace() {
+    if (!cal.pts.length) return;
+    if (!await Dialogue.confirmer({ titre: 'Effacer le tracé ?', message: 'Les points du contour seront supprimés. Le plan et l’échelle sont conservés.', ok: 'Effacer', danger: true })) return;
+    cal.pts = []; sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+}
+
+/* --- Mesures --- */
+function surfaceCalque() {
+    if (cal.pts.length < 3 || !cal.echelle) return 0;
+    let a = 0;
+    for (let i = 0; i < cal.pts.length; i++) {
+        const p = cal.pts[i], q = cal.pts[(i + 1) % cal.pts.length];
+        a += p.x * q.y - q.x * p.y;
+    }
+    return Math.abs(a) / 2 * cal.echelle * cal.echelle;
+}
+function perimetreCalque() {
+    if (cal.pts.length < 2 || !cal.echelle) return 0;
+    let l = 0;
+    for (let i = 0; i < cal.pts.length; i++) {
+        const p = cal.pts[i], q = cal.pts[(i + 1) % cal.pts.length];
+        if (i === cal.pts.length - 1 && cal.pts.length < 3) break;
+        l += Math.hypot(q.x - p.x, q.y - p.y);
+    }
+    return l * cal.echelle;
+}
+
+function majInterfaceCalque() {
+    const aPlan = !!cal.img;
+    const etapes = [
+        { n: '1', lbl: 'Charger', faite: aPlan },
+        { n: '2', lbl: 'Calibrer', faite: !!cal.echelle, active: aPlan && cal.mode === 'calibrer' },
+        { n: '3', lbl: 'Tracer', faite: cal.pts.length > 2, active: aPlan && !!cal.echelle && cal.mode === 'tracer' }
+    ];
+    const cont = $('cal-etapes');
+    if (cont) cont.innerHTML = etapes.map(e => `<div class="cal-etape ${e.active ? 'active' : e.faite ? 'faite' : ''}"><b>${e.faite && !e.active ? '✓' : e.n}</b>${e.lbl}</div>`).join('');
+    const vide = $('cal-vide');
+    if (vide) {
+        vide.hidden = aPlan;
+        const titre = vide.querySelector('div:nth-child(2)');
+        if (titre) titre.textContent = cal.chargement ? 'Chargement du plan…' : 'Aucun plan chargé';
+    }
+    const barre = $('cal-barre'); if (barre) barre.hidden = !aPlan;
+    const zoom = $('cal-zoom'); if (zoom) zoom.hidden = !aPlan;
+    const btnPage = $('cal-btn-page'); if (btnPage) btnPage.hidden = !(cal.pdfDoc && cal.nbPages > 1);
+
+    const res = $('cal-resultat'); const act = $('cal-actions');
+    const pret = cal.echelle && cal.pts.length > 2;
+    if (res) {
+        res.hidden = !aPlan;
+        if (aPlan) {
+            if (!cal.echelle) res.innerHTML = '📏 <b>Échelle à régler</b><br><span style="font-size:12px;">Touchez « Calibrer », pointez les deux bouts d’une cote connue (une façade, une porte), puis saisissez sa longueur.</span>';
+            else if (cal.pts.length < 3) res.innerHTML = `✅ Échelle réglée<br><span style="font-size:12px;">Touchez les angles du lot pour tracer son contour (${cal.pts.length} point(s) posé(s)). Glissez pour déplacer, pincez pour zoomer.</span>`;
+            else res.innerHTML = `Surface relevée : <span class="cal-surf">${surfaceCalque().toFixed(2)} m²</span><br>Périmètre <b>${perimetreCalque().toFixed(2)} m</b> · ${cal.pts.length} points`;
+        }
+    }
+    if (act) act.hidden = !pret;
+}
+
+function dessinerCalque() {
+    const canvas = $('calque-canvas'); if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const { w, h } = tailleCalque();
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (!cal.img) return;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cal.img, cal.ox, cal.oy, cal.img.width * cal.zoom, cal.img.height * cal.zoom);
+
+    // Cote de calibrage
+    if (cal.calib.length) {
+        ctx.strokeStyle = '#D97706'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        cal.calib.forEach((p, i) => { const e = versEcran(p); i === 0 ? ctx.moveTo(e.x, e.y) : ctx.lineTo(e.x, e.y); });
+        ctx.stroke(); ctx.setLineDash([]);
+        cal.calib.forEach(p => { const e = versEcran(p); ctx.beginPath(); ctx.arc(e.x, e.y, 7, 0, 7); ctx.fillStyle = '#D97706'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); });
+    }
+    // Contour tracé
+    if (cal.pts.length) {
+        ctx.beginPath();
+        cal.pts.forEach((p, i) => { const e = versEcran(p); i === 0 ? ctx.moveTo(e.x, e.y) : ctx.lineTo(e.x, e.y); });
+        if (cal.pts.length > 2) {
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(37,99,235,0.16)'; ctx.fill();
+        }
+        ctx.strokeStyle = '#2563EB'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.stroke();
+        // Longueur de chaque segment
+        if (cal.echelle) {
+            ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const n = cal.pts.length;
+            for (let i = 0; i < (n > 2 ? n : n - 1); i++) {
+                const p = cal.pts[i], q = cal.pts[(i + 1) % n];
+                const a = versEcran(p), b = versEcran(q);
+                const lm = Math.hypot(q.x - p.x, q.y - p.y) * cal.echelle;
+                if (lm < 0.05) continue;
+                const txt = lm.toFixed(2) + ' m';
+                const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                const tw = ctx.measureText(txt).width;
+                ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fillRect(mx - tw / 2 - 4, my - 9, tw + 8, 18);
+                ctx.fillStyle = '#0F172A'; ctx.fillText(txt, mx, my);
+            }
+        }
+        cal.pts.forEach((p, i) => {
+            const e = versEcran(p);
+            ctx.beginPath(); ctx.arc(e.x, e.y, i === 0 ? 7 : 5, 0, 7);
+            ctx.fillStyle = i === 0 ? '#16A34A' : '#2563EB'; ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+        });
+    }
+}
+
+/* --- Actions du calque --- */
+function appliquerSurfaceCalque() {
+    const s = surfaceCalque();
+    if (!s) { toast('Tracez au moins trois points après le calibrage'); return; }
+    if (curAppt === 'copro') {
+        db.copro.surfcommuns = s.toFixed(2);
+        const input = $('copro-surfcommuns'); if (input) input.value = db.copro.surfcommuns;
+        sauvegarderLocal(); updateDashboard(); toast(`Surface (${s.toFixed(2)} m²) affectée aux parties communes ✓`);
+        return;
+    }
+    const apt = db.appts.find(a => a.id === curAppt); if (!apt) return;
+    apt.surfs = apt.surfs || {}; apt.surfs[curNivInt] = s;
+    apt.surf = Object.values(apt.surfs).reduce((x, v) => x + v, 0).toFixed(1);
+    sauvegarderLocal(); renderApptsList(); updateDashboard();
+    toast(`Surface N${curNivInt} (${s.toFixed(2)} m²) appliquée au lot ${apt.num} · total ${apt.surf} m²`);
+}
+async function enregistrerPlanCalque() {
+    const canvas = $('calque-canvas');
+    if (!canvas || !cal.img) { toast('Aucun plan à enregistrer'); return; }
+    const b64 = canvas.toDataURL('image/png');
+    if (curAppt === 'copro') {
+        await upsertDoc('Calque_Copro_PartiesCommunes.png', b64);
+        sauvegarderLocal(); renderDocs(); toast('Calque enregistré dans les documents 📁'); return;
+    }
+    const apt = db.appts.find(a => a.id === curAppt); if (!apt) return;
+    apt.plans = apt.plans || {};
+    apt.plans[curNivInt] = await upsertDoc(`Calque_${apt.num}_N${curNivInt}.png`, b64);
+    sauvegarderLocal(); renderDocs(); renderApptsList();
+    toast(`Calque du lot ${apt.num} enregistré 📁`);
+}
+async function genererMursDepuisCalque() {
+    if (cal.pts.length < 3 || !cal.echelle) { toast('Calibrez puis tracez au moins trois points'); return; }
+    const apt = db.appts.find(a => a.id === curAppt);
+    const hauteur = (apt && apt.hsp) || '';
+    if (!await Dialogue.confirmer({
+        titre: 'Générer les murs de façade',
+        message: `${cal.pts.length} mur(s) seront créés d’après le contour relevé${hauteur ? `, avec une hauteur de ${hauteur} m` : ''}.\n\nLeur matériau et leur isolation restent à compléter.`,
+        ok: 'Générer'
+    })) return;
+    // Passage des pixels de l'image aux mètres du plan, avec le même repère que le croquis.
+    const contour = cal.pts.map(p => ({ x: p.x * cal.echelle, y: p.y * cal.echelle }));
+    const crees = creerMursDepuisContour(contour, hauteur);
+    toast(`${crees} mur(s) de façade générés — complétez matériau et isolation ✏️`);
+}
+
+/* ==========================================================================
    8. MODE BUREAU
    ========================================================================== */
 function renderBureauTarget() {
@@ -1578,6 +2338,7 @@ async function exportExcel() {
     feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "" })), 'Portes');
     feuille(db.plfs.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Plafonds');
     feuille(db.plas.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Planchers');
+    feuille(db.pieces.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Pièce": p.nom || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": (surfacePiece(p)).toFixed(2) })), 'Pièces');
     feuille(db.chaufs.map(c => ({ "Lot": getAptNum(c.aptId), "Énergie": c.energie || "", "Générateur": c.gen || "", "Émetteur": c.emetteur || "", "Année": c.annee || "", "Puissance (kW)": c.puissance || "" })), 'Chauffages');
     feuille(db.ecss.map(e => ({ "Lot": getAptNum(e.aptId), "Énergie": e.energie || "", "Type/Générateur": e.type || "", "Année": e.annee || "", "Volume (L)": e.vol || "" })), 'ECS');
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -1665,7 +2426,7 @@ async function init() {
         if (migration) { try { await localforage.removeItem(CLE_DB_ANCIENNE); } catch (e) { /* ignoré */ } }
     }
     $('hd-version').textContent = 'v' + APP_VERSION; const av = $('aide-version'); if (av) av.textContent = APP_VERSION;
-    construireNavigation(); brancherUploader(); peuplerSelects(); chargerFormulaireCopro();
+    construireNavigation(); brancherUploader(); brancherPlanPieces(); brancherCalque(); peuplerSelects(); chargerFormulaireCopro();
     renderDocs(); renderCoproPhotos(); renderApptsList(); renderBibliFens(); updateDashboard();
     if (nbMigres) { sauvegarderLocal(); setTimeout(() => toast(`${nbMigres} libellé(s) mis à jour vers la nomenclature ADN`, { duree: 4000 }), 800); }
     const vueInitiale = location.hash.replace('#', '');

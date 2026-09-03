@@ -33,7 +33,7 @@ check(await page.locator('.nav-zone.on').textContent() === '🏠Accueil', 'zone 
 check(await page.locator('#nav-vues').innerText() === '', 'pas de sous-barre sur Accueil');
 await page.click('.nav-zone[data-zone="dossier"]');
 check(await page.locator('#vw-copro').isVisible(), 'zone Dossier ouvre Copro');
-check((await page.locator('.nav-vue').count()) === 2, 'sous-barre Copro/Lots');
+check((await page.locator('.nav-vue').count()) === 4, 'sous-barre Copro / Lots / Pièces / Calque');
 check(await page.evaluate(() => location.hash) === '#copro', 'hash mis à jour');
 check(await page.evaluate(() => getComputedStyle(document.querySelector('#copro-nom')).fontSize) === '16px', 'champs à 16px');
 
