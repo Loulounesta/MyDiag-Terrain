@@ -2,7 +2,7 @@
 // L'application s'affiche instantanément depuis le cache (même sur réseau lent en chantier) ;
 // chaque ressource est rafraîchie en tâche de fond, et un nouveau service worker (nouveau
 // nom de cache) déclenche dans la page le bandeau « Nouvelle version disponible ».
-const CACHE = 'mydiag-v9-2';
+const CACHE = 'mydiag-v9-3';
 const ASSETS = [
   './',
   './index.html',

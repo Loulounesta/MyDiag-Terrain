@@ -43,7 +43,7 @@
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.2</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.3</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -283,6 +283,8 @@
         <div class="cal-etapes" id="cal-etapes"></div>
     </div>
 
+    <div id="cal-echelle" class="cal-echelle" hidden></div>
+
     <div class="cal-zone">
         <canvas id="calque-canvas"></canvas>
         <div id="cal-vide" class="cal-vide">
@@ -290,6 +292,7 @@
             <div style="font-weight:800; margin-bottom:6px;">Aucun plan chargé</div>
             <div style="font-size:13px; color:var(--tx2); line-height:1.5;">Chargez le plan de l’immeuble ou du lot,<br>en PDF ou en photo.</div>
             <button class="btn-p" style="max-width:260px; margin:16px auto 0;" onclick="chargerPlanCalque()">📂 Charger un plan</button>
+            <button class="safe-home-btn-secondary" style="max-width:260px; margin:10px auto 0;" onclick="reprendrePlanExistant()">♻️ Reprendre un plan déjà calibré</button>
         </div>
         <div class="cal-zoom" id="cal-zoom" hidden>
             <button class="cal-zbtn" onclick="zoomCalque(1.35)">＋</button>
@@ -298,8 +301,14 @@
         </div>
     </div>
 
+    <div id="cal-modes" class="cal-modes" hidden>
+        <button class="cal-mode" id="cal-mode-mesurer" onclick="basculerModeCalque('mesurer')">📐 Mesurer une cote</button>
+        <button class="cal-mode" id="cal-mode-tracer" onclick="basculerModeCalque('tracer')">✏️ Tracer le contour</button>
+    </div>
+
     <div id="cal-barre" class="cal-barre" hidden>
         <button class="btn-xs btn-soft" onclick="chargerPlanCalque()">📂 Changer</button>
+        <button class="btn-xs btn-soft" onclick="reprendrePlanExistant()">♻️ Reprendre</button>
         <button class="btn-xs btn-soft" id="cal-btn-page" onclick="pageSuivanteCalque()" hidden>Page suivante</button>
         <button class="btn-xs btn-soft" onclick="lancerCalibrage()">📏 Calibrer</button>
         <button class="btn-xs btn-soft" onclick="annulerDernierPoint()">↩︎ Annuler le point</button>
@@ -308,10 +317,15 @@
 
     <div id="cal-resultat" class="cal-resultat" hidden></div>
 
+    <div id="cal-mesures-card" class="safe-list-card" hidden>
+        <div class="safe-list-head">Cotes relevées <span id="cal-mesures-info" class="list-head-info"></span></div>
+        <div class="safe-list-body"><div id="cal-mesures"></div></div>
+    </div>
+
     <div id="cal-actions" class="plan-actions" hidden>
-        <button class="btn-xs" style="background:var(--ok); color:#fff;" onclick="appliquerSurfaceCalque()">✔️ Appliquer la surface</button>
-        <button class="btn-xs btn-soft" onclick="enregistrerPlanCalque()">💾 Enregistrer le plan</button>
-        <button class="btn-xs btn-soft" onclick="genererMursDepuisCalque()">🧱 Générer les murs</button>
+        <button class="btn-xs" id="cal-btn-surface" style="background:var(--ok); color:#fff;" onclick="appliquerSurfaceCalque()">✔️ Appliquer la surface</button>
+        <button class="btn-xs btn-soft" onclick="enregistrerPlanCalque()">💾 Enregistrer le plan coté</button>
+        <button class="btn-xs btn-soft" id="cal-btn-murs" onclick="genererMursDepuisCalque()">🧱 Générer les murs</button>
     </div>
 </div>
 
@@ -893,7 +907,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.2</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.3</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

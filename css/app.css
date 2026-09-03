@@ -266,6 +266,20 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .cal-etape b { display: block; font-size: 15px; margin-bottom: 3px; }
 .cal-etape.faite { background: var(--ok-l); border-color: #BBF7D0; color: var(--ok); }
 .cal-etape.active { background: var(--acc); border-color: var(--acc); color: #fff; }
+.cal-echelle { display: flex; align-items: center; gap: 10px; background: var(--ok-l); border: 1px solid #BBF7D0; border-radius: var(--r); padding: 12px 14px; margin-bottom: 12px; font-size: 13px; font-weight: 700; color: #166534; }
+.cal-echelle.absente { background: var(--warn-l); border-color: #FDE68A; color: #B45309; }
+.cal-echelle .cal-ech-txt { flex: 1; min-width: 0; line-height: 1.45; }
+.cal-echelle .cal-ech-txt b { display: block; font-size: 15px; }
+.cal-echelle .cal-ech-txt small { display: block; font-weight: 600; opacity: 0.85; margin-top: 2px; }
+.cal-echelle button { flex-shrink: 0; background: #fff; border: 1px solid currentColor; color: inherit; border-radius: 10px; padding: 9px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.cal-modes { display: flex; gap: 8px; margin-bottom: 10px; }
+.cal-mode { flex: 1; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--bor); background: var(--sur); color: var(--tx2); font-size: 13px; font-weight: 800; cursor: pointer; }
+.cal-mode.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.cal-mesure-ligne { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--bor); }
+.cal-mesure-ligne:last-child { border-bottom: none; }
+.cal-mesure-nom { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: var(--tx); word-wrap: break-word; }
+.cal-mesure-val { flex-shrink: 0; font-size: 15px; font-weight: 900; color: var(--ok); }
+
 .cal-zone { position: relative; background: var(--sur); border: 1px solid var(--bor); border-radius: var(--r); overflow: hidden; margin-bottom: 12px; box-shadow: var(--ombre-2); }
 #calque-canvas { width: 100%; height: 380px; display: block; background: #F1F5F9; touch-action: none; }
 .cal-vide { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; background: var(--sur); }
@@ -298,6 +312,8 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .recap-chiffres { font-size: 12px; font-weight: 800; color: var(--acc); margin-top: 4px; }
 .recap-actions { display: flex; gap: 6px; flex-wrap: wrap; width: 94px; flex-shrink: 0; }
 .recap-vide { text-align: center; padding: 28px 16px; color: #94A3B8; font-size: 14px; font-weight: 600; }
+.dlg-label { display: block; font-size: 12px; font-weight: 800; color: var(--tx2); margin-top: 12px; }
+.dlg-label .dlg-select { margin-top: 6px; }
 .dlg-select { width: 100%; padding: 12px; margin-top: 14px; border-radius: 10px; border: 2px solid var(--bor); font-weight: 700; color: var(--tx); background: #fff; }
 
 /* ---------- Export ---------- */

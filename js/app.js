@@ -83,6 +83,34 @@ const Dialogue = {
         const dlg = $('dlg'); const e = $('dlg-choix'); if (e) { choix = e.value; e.onchange = () => { choix = e.value; }; }
         return p.then(v => v ? (sel() ?? choix) : null);
     },
+    // Plusieurs champs en une boîte ; retourne un objet {id: valeur} ou null.
+    formulaire({ titre = 'Saisie', message = '', champs = [], ok = 'Valider', annuler = 'Annuler' } = {}) {
+        if (!this._supporte()) {
+            const res = {};
+            for (const c of champs) {
+                const r = window.prompt(c.label, c.valeur || '');
+                if (r === null) return Promise.resolve(null);
+                res[c.id] = c.type === 'number' ? String(r).replace(',', '.') : r;
+            }
+            return Promise.resolve(res);
+        }
+        const html = `
+            <div class="dlg-body"><div class="dlg-title">${esc(titre)}</div>${message ? `<div class="dlg-msg">${esc(message)}</div>` : ''}
+                ${champs.map(c => `<label class="dlg-label">${esc(c.label)}
+                    <input class="dlg-select" id="dlg-c-${esc(c.id)}" type="${c.type === 'number' ? 'number' : 'text'}" ${c.type === 'number' ? 'inputmode="decimal" step="any"' : ''} value="${esc(c.valeur || '')}" placeholder="${esc(c.placeholder || '')}" enterkeyhint="done"></label>`).join('')}
+            </div>
+            <div class="dlg-actions"><button type="button" class="dlg-cancel" data-val="0">${esc(annuler)}</button><button type="button" class="dlg-ok" data-val="1">${esc(ok)}</button></div>`;
+        const p = this._ouvrir(html);
+        const premier = $(`dlg-c-${champs[0] && champs[0].id}`);
+        if (premier) {
+            premier.focus();
+            $('dlg').querySelectorAll('input').forEach(i => { i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const b = $('dlg').querySelector('.dlg-ok'); if (b) b.click(); } }; });
+        }
+        const lire = () => { const r = {}; champs.forEach(c => { const el = $(`dlg-c-${c.id}`); r[c.id] = el ? (c.type === 'number' ? String(el.value).replace(',', '.') : el.value) : ''; }); return r; };
+        let valeurs = lire();
+        $('dlg').querySelectorAll('input').forEach(i => { i.oninput = () => { valeurs = lire(); }; });
+        return p.then(v => v ? valeurs : null);
+    },
     // Saisie d'une valeur numérique ; retourne la valeur ou null.
     saisir({ titre = 'Saisie', message = '', valeur = '', unite = '', ok = 'Valider', annuler = 'Annuler' } = {}) {
         if (!this._supporte()) { const r = window.prompt(message || titre, valeur); return Promise.resolve(r === null ? null : r.replace(',', '.')); }
@@ -160,8 +188,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.2';
-const CACHE_VERSION = 'mydiag-v9-2'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.3';
+const CACHE_VERSION = 'mydiag-v9-3'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -1725,7 +1753,7 @@ function creerMursDepuisContour(contour, hauteur) {
    périmètre et murs de façade en découlent.
    Les points sont stockés en pixels de l'image ; l'échelle est en mètres/pixel.
    ========================================================================== */
-let cal = { media: null, img: null, echelle: 0, pts: [], calib: [], mode: 'tracer', zoom: 1, ox: 0, oy: 0, pdfDoc: null, page: 1, nbPages: 1 };
+let cal = { media: null, img: null, echelle: 0, pts: [], mesures: [], calib: [], ref: null, mode: 'tracer', zoom: 1, ox: 0, oy: 0, pdfDoc: null, page: 1, nbPages: 1 };
 let calPointers = new Map(), calDrag = null, calPinch = null;
 
 const cleCalque = () => `${curAppt || 'copro'}_${curNivInt}`;
@@ -1757,10 +1785,11 @@ function changerCibleCalque(val) { curAppt = val; curNivInt = 0; renderCibleCalq
 
 function chargerEtatCalque() {
     const etat = db.calques[cleCalque()];
-    cal.pts = []; cal.calib = []; cal.echelle = 0; cal.img = null; cal.media = null; cal.mode = 'tracer';
+    cal.pts = []; cal.mesures = []; cal.calib = []; cal.ref = null; cal.echelle = 0; cal.img = null; cal.media = null; cal.mode = 'tracer';
     cal.zoom = 1; cal.ox = 0; cal.oy = 0; cal.pdfDoc = null; cal.page = 1; cal.nbPages = 1; cal.chargement = false;
     if (etat && etat.media) {
         cal.media = etat.media; cal.echelle = etat.echelle || 0; cal.pts = (etat.pts || []).map(p => ({ ...p }));
+        cal.mesures = (etat.mesures || []).map(m => ({ ...m })); cal.ref = etat.ref || null;
         const src = Medias.src(etat.media);
         if (src) {
             // Le décodage de l'image est asynchrone : on l'annonce, sinon l'écran
@@ -1776,7 +1805,7 @@ function chargerEtatCalque() {
 }
 function sauverEtatCalque() {
     if (!cal.media) { delete db.calques[cleCalque()]; }
-    else db.calques[cleCalque()] = { media: cal.media, echelle: cal.echelle, pts: cal.pts.map(p => ({ ...p })) };
+    else db.calques[cleCalque()] = { media: cal.media, echelle: cal.echelle, ref: cal.ref, pts: cal.pts.map(p => ({ ...p })), mesures: cal.mesures.map(m => ({ ...m })) };
     sauvegarderLocal();
 }
 
@@ -1837,7 +1866,7 @@ async function rendrePagePdf() {
 async function poserImageCalque(dataURL) {
     if (cal.media) await Medias.supprimer(cal.media);
     cal.media = await Medias.ajouter(dataURL);
-    cal.pts = []; cal.calib = []; cal.echelle = 0; cal.mode = 'calibrer';
+    cal.pts = []; cal.mesures = []; cal.calib = []; cal.ref = null; cal.echelle = 0; cal.mode = 'calibrer';
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = Medias.src(cal.media); });
     cal.img = img;
     recentrerCalque(); sauverEtatCalque(); majInterfaceCalque();
@@ -1917,13 +1946,45 @@ async function poserPointCalque(p) {
         dessinerCalque();
         if (cal.calib.length === 2) {
             const pix = Math.hypot(cal.calib[1].x - cal.calib[0].x, cal.calib[1].y - cal.calib[0].y);
-            const m = await Dialogue.saisir({ titre: 'Longueur réelle', message: 'Quelle est la distance réelle entre les deux points pointés ?', unite: 'mètres', valeur: '' });
-            if (m && parseFloat(m) > 0 && pix > 2) {
-                cal.echelle = parseFloat(m) / pix;
+            const rep = await Dialogue.formulaire({
+                titre: 'Calibrer le plan',
+                message: 'Saisissez la longueur relevée sur le terrain entre les deux points pointés. Cette échelle sera conservée avec le plan.',
+                champs: [
+                    { id: 'm', label: 'Longueur mesurée (m)', type: 'number', placeholder: 'ex : 12.45' },
+                    { id: 'lib', label: 'Sur quoi (facultatif)', type: 'text', placeholder: 'ex : façade sud au télémètre' }
+                ], ok: 'Enregistrer l’échelle'
+            });
+            const m = rep && parseFloat(rep.m);
+            if (m > 0 && pix > 2) {
+                cal.echelle = m / pix;
+                cal.ref = { metres: m, pixels: pix, libelle: (rep.lib || '').trim(), date: new Date().toISOString().slice(0, 10) };
                 cal.mode = 'tracer';
-                toast(`Échelle réglée sur ${m} m ✓ Tracez maintenant le contour`, { duree: 3500 });
+                toast(`Échelle enregistrée sur ${m} m ✓`, { duree: 3500 });
                 sauverEtatCalque();
             } else { toast('Calibrage abandonné'); }
+            cal.calib = [];
+            majInterfaceCalque();
+        }
+        dessinerCalque();
+        return;
+    }
+    if (cal.mode === 'mesurer') {
+        cal.calib.push(p);
+        dessinerCalque();
+        if (cal.calib.length === 2) {
+            const pix = Math.hypot(cal.calib[1].x - cal.calib[0].x, cal.calib[1].y - cal.calib[0].y);
+            const longueur = pix * cal.echelle;
+            const rep = await Dialogue.formulaire({
+                titre: `Cote relevée : ${longueur.toFixed(2)} m`,
+                message: 'Donnez-lui un nom pour la retrouver au bureau.',
+                champs: [{ id: 'nom', label: 'Nom de la cote', type: 'text', placeholder: 'ex : façade nord' }],
+                ok: 'Enregistrer la cote'
+            });
+            if (rep) {
+                cal.mesures.push({ id: Date.now() + Math.random(), a: { ...cal.calib[0] }, b: { ...cal.calib[1] }, nom: (rep.nom || '').trim() || `Cote ${cal.mesures.length + 1}`, m: +longueur.toFixed(3) });
+                sauverEtatCalque();
+                toast(`Cote enregistrée : ${longueur.toFixed(2)} m ✓`);
+            }
             cal.calib = [];
             majInterfaceCalque();
         }
@@ -1936,8 +1997,59 @@ async function poserPointCalque(p) {
 function lancerCalibrage() {
     if (!cal.img) { toast('Chargez d’abord un plan'); return; }
     cal.mode = 'calibrer'; cal.calib = [];
-    toast('Pointez les deux extrémités d’une cote connue', { duree: 4000 });
+    toast('Pointez les deux extrémités de la cote mesurée sur le terrain', { duree: 4500 });
     majInterfaceCalque(); dessinerCalque();
+}
+function basculerModeCalque(mode) {
+    if (!cal.img) { toast('Chargez d’abord un plan'); return; }
+    if (mode === 'mesurer' && !cal.echelle) { toast('Calibrez d’abord le plan 📏'); lancerCalibrage(); return; }
+    cal.mode = mode; cal.calib = [];
+    toast(mode === 'mesurer' ? 'Pointez les deux extrémités de la cote à relever' : 'Touchez les angles du lot pour tracer son contour', { duree: 3000 });
+    majInterfaceCalque(); dessinerCalque();
+}
+function renderMesuresCalque() {
+    const cont = $('cal-mesures'); const card = $('cal-mesures-card'); if (!cont || !card) return;
+    card.hidden = !cal.mesures.length;
+    const info = $('cal-mesures-info');
+    if (info) info.textContent = cal.mesures.length ? `${cal.mesures.length} cote(s)` : '';
+    cont.innerHTML = cal.mesures.map(m => `
+        <div class="cal-mesure-ligne">
+            <span class="cal-mesure-nom">${esc(m.nom)}</span>
+            <span class="cal-mesure-val">${(+m.m).toFixed(2)} m</span>
+            <button class="ico-btn dan" title="Supprimer" data-act="suppMesure" data-id="${m.id}">❌</button>
+        </div>`).join('');
+}
+Actions.suppMesure = d => {
+    const idx = cal.mesures.findIndex(m => String(m.id) === String(d.id)); if (idx < 0) return;
+    const item = cal.mesures[idx]; cal.mesures.splice(idx, 1);
+    sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+    toastAnnuler(`Cote « ${item.nom} » supprimée`, () => { cal.mesures.splice(idx, 0, item); sauverEtatCalque(); majInterfaceCalque(); dessinerCalque(); });
+};
+// Le même plan sert souvent à plusieurs lots : on le reprend avec son échelle.
+async function reprendrePlanExistant() {
+    const options = [];
+    Object.entries(db.calques).forEach(([cle, etat]) => {
+        if (!etat.media || cle === cleCalque()) return;
+        if (options.some(o => o.media === etat.media)) return;
+        const [aid, niv] = cle.split('_');
+        const apt = db.appts.find(a => a.id === aid);
+        const ou = aid === 'copro' ? 'parties communes' : (apt ? `lot ${apt.num}` : 'lot supprimé');
+        const ech = etat.echelle ? `échelle réglée${etat.ref && etat.ref.libelle ? ' sur ' + etat.ref.libelle : ''}` : 'sans échelle';
+        options.push({ value: cle, media: etat.media, label: `Plan du ${ou} · N${niv} — ${ech}` });
+    });
+    if (!options.length) { toast('Aucun autre plan chargé dans ce dossier'); return; }
+    const choix = await Dialogue.choisir({ titre: 'Reprendre un plan', message: 'Le plan et son échelle seront repris pour la cible en cours. Votre tracé reste propre à chaque lot.', options: options.map(o => ({ value: o.value, label: o.label })), ok: 'Reprendre' });
+    if (!choix) return;
+    const src = db.calques[choix]; if (!src) return;
+    cal.media = src.media; cal.echelle = src.echelle || 0; cal.ref = src.ref || null;
+    cal.pts = []; cal.mesures = []; cal.calib = []; cal.mode = cal.echelle ? 'tracer' : 'calibrer';
+    cal.chargement = true; majInterfaceCalque();
+    const img = new Image();
+    img.onload = () => { cal.img = img; cal.chargement = false; recentrerCalque(); majInterfaceCalque(); };
+    img.onerror = () => { cal.chargement = false; majInterfaceCalque(); toast('⚠️ Plan introuvable'); };
+    img.src = Medias.src(cal.media);
+    sauverEtatCalque();
+    toast(cal.echelle ? 'Plan et échelle repris ✓' : 'Plan repris — il reste à calibrer');
 }
 function annulerDernierPoint() {
     if (cal.mode === 'calibrer' && cal.calib.length) { cal.calib.pop(); dessinerCalque(); return; }
@@ -1990,17 +2102,51 @@ function majInterfaceCalque() {
     const zoom = $('cal-zoom'); if (zoom) zoom.hidden = !aPlan;
     const btnPage = $('cal-btn-page'); if (btnPage) btnPage.hidden = !(cal.pdfDoc && cal.nbPages > 1);
 
+    // Bandeau d'échelle : ce qu'elle vaut, et sur quoi elle a été calibrée.
+    const bandeau = $('cal-echelle');
+    if (bandeau) {
+        bandeau.hidden = !aPlan;
+        bandeau.classList.toggle('absente', !cal.echelle);
+        if (aPlan) {
+            if (cal.echelle) {
+                const r = cal.ref;
+                const origine = r ? `d’après ${r.metres} m relevés${r.libelle ? ' sur ' + esc(r.libelle) : ''}${r.date ? ' le ' + r.date.split('-').reverse().join('/') : ''}` : 'calibrage enregistré';
+                // Largeur totale du plan : un repère vérifiable d'un coup d'œil,
+                // qui trahit tout de suite un calibrage faux d'un facteur dix.
+                const largeur = cal.img ? ` · le plan couvre ${(cal.img.width * cal.echelle).toFixed(1)} m de large` : '';
+                bandeau.innerHTML = `<div class="cal-ech-txt"><b>Échelle conservée</b><small>${origine}${largeur}</small></div><button onclick="lancerCalibrage()">Recalibrer</button>`;
+            } else {
+                bandeau.innerHTML = `<div class="cal-ech-txt"><b>Échelle à régler</b><small>Pointez une cote mesurée sur le terrain : l’échelle restera attachée à ce plan.</small></div><button onclick="lancerCalibrage()">Calibrer</button>`;
+            }
+        }
+    }
+    const modes = $('cal-modes');
+    if (modes) {
+        modes.hidden = !aPlan;
+        const bm = $('cal-mode-mesurer'), bt = $('cal-mode-tracer');
+        if (bm) bm.classList.toggle('on', cal.mode === 'mesurer');
+        if (bt) bt.classList.toggle('on', cal.mode === 'tracer');
+    }
+    renderMesuresCalque();
+
     const res = $('cal-resultat'); const act = $('cal-actions');
-    const pret = cal.echelle && cal.pts.length > 2;
+    // Le plan s'enregistre dès qu'il y a quelque chose à conserver : une cote suffit.
+    const pret = aPlan && (cal.pts.length > 2 || cal.mesures.length > 0);
     if (res) {
         res.hidden = !aPlan;
         if (aPlan) {
             if (!cal.echelle) res.innerHTML = '📏 <b>Échelle à régler</b><br><span style="font-size:12px;">Touchez « Calibrer », pointez les deux bouts d’une cote connue (une façade, une porte), puis saisissez sa longueur.</span>';
+            else if (cal.mode === 'mesurer') res.innerHTML = `📐 <b>Relevé de cotes</b><br><span style="font-size:12px;">Pointez deux extrémités : la cote est enregistrée avec son nom. ${cal.calib.length === 1 ? 'Premier point posé…' : ''}</span>`;
             else if (cal.pts.length < 3) res.innerHTML = `✅ Échelle réglée<br><span style="font-size:12px;">Touchez les angles du lot pour tracer son contour (${cal.pts.length} point(s) posé(s)). Glissez pour déplacer, pincez pour zoomer.</span>`;
             else res.innerHTML = `Surface relevée : <span class="cal-surf">${surfaceCalque().toFixed(2)} m²</span><br>Périmètre <b>${perimetreCalque().toFixed(2)} m</b> · ${cal.pts.length} points`;
         }
     }
     if (act) act.hidden = !pret;
+    // Surface et murs supposent un contour fermé ; l'enregistrement du plan, non.
+    const contourPret = !!(cal.echelle && cal.pts.length > 2);
+    const bs = $('cal-btn-surface'), bmu = $('cal-btn-murs');
+    if (bs) bs.hidden = !contourPret;
+    if (bmu) bmu.hidden = !contourPret;
 }
 
 function dessinerCalque() {
@@ -2023,6 +2169,21 @@ function dessinerCalque() {
         ctx.stroke(); ctx.setLineDash([]);
         cal.calib.forEach(p => { const e = versEcran(p); ctx.beginPath(); ctx.arc(e.x, e.y, 7, 0, 7); ctx.fillStyle = '#D97706'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); });
     }
+    // Cotes enregistrées
+    cal.mesures.forEach(m => {
+        const a = versEcran(m.a), b = versEcran(m.b);
+        ctx.strokeStyle = '#16A34A'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        [a, b].forEach(e => { ctx.beginPath(); ctx.arc(e.x, e.y, 5, 0, 7); ctx.fillStyle = '#16A34A'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); });
+        const txt = `${m.nom} · ${(+m.m).toFixed(2)} m`;
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(txt).width;
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        ctx.fillStyle = 'rgba(240,253,244,0.95)'; ctx.fillRect(mx - tw / 2 - 5, my - 10, tw + 10, 20);
+        ctx.strokeStyle = '#BBF7D0'; ctx.lineWidth = 1; ctx.strokeRect(mx - tw / 2 - 5, my - 10, tw + 10, 20);
+        ctx.fillStyle = '#166534'; ctx.fillText(txt, mx, my);
+    });
+
     // Contour tracé
     if (cal.pts.length) {
         ctx.beginPath();
@@ -2060,7 +2221,7 @@ function dessinerCalque() {
 /* --- Actions du calque --- */
 function appliquerSurfaceCalque() {
     const s = surfaceCalque();
-    if (!s) { toast('Tracez au moins trois points après le calibrage'); return; }
+    if (!s) { toast('Tracez au moins trois points pour obtenir une surface'); return; }
     if (curAppt === 'copro') {
         db.copro.surfcommuns = s.toFixed(2);
         const input = $('copro-surfcommuns'); if (input) input.value = db.copro.surfcommuns;
@@ -2338,6 +2499,12 @@ async function exportExcel() {
     feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "" })), 'Portes');
     feuille(db.plfs.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Plafonds');
     feuille(db.plas.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Planchers');
+    const cotes = [];
+    Object.entries(db.calques).forEach(([cle, etat]) => {
+        const [aid, niv] = cle.split('_');
+        (etat.mesures || []).forEach(m => cotes.push({ "Lot": getAptNum(aid), "Niveau": niv, "Cote": m.nom || "", "Longueur (m)": (+m.m).toFixed(2), "Échelle du plan": etat.ref ? `${etat.ref.metres} m relevés${etat.ref.libelle ? ' sur ' + etat.ref.libelle : ''}` : "" }));
+    });
+    feuille(cotes, 'Cotes relevées');
     feuille(db.pieces.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Pièce": p.nom || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": (surfacePiece(p)).toFixed(2) })), 'Pièces');
     feuille(db.chaufs.map(c => ({ "Lot": getAptNum(c.aptId), "Énergie": c.energie || "", "Générateur": c.gen || "", "Émetteur": c.emetteur || "", "Année": c.annee || "", "Puissance (kW)": c.puissance || "" })), 'Chauffages');
     feuille(db.ecss.map(e => ({ "Lot": getAptNum(e.aptId), "Énergie": e.energie || "", "Type/Générateur": e.type || "", "Année": e.annee || "", "Volume (L)": e.vol || "" })), 'ECS');
