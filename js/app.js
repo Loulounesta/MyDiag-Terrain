@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.4';
-const CACHE_VERSION = 'mydiag-v9-4'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.5';
+const CACHE_VERSION = 'mydiag-v9-5'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -1792,7 +1792,7 @@ function chargerEtatCalque() {
     cal.zoom = 1; cal.ox = 0; cal.oy = 0; cal.pdfDoc = null; cal.page = 1; cal.nbPages = 1; cal.chargement = false;
     if (etat && etat.media) {
         cal.media = etat.media; cal.echelle = etat.echelle || 0; cal.pts = (etat.pts || []).map(p => ({ ...p }));
-        cal.mesures = (etat.mesures || []).map(m => ({ ...m })); cal.ref = etat.ref || null; cal.gabarit = etat.gabarit ? { ...etat.gabarit } : null;
+        cal.mesures = (etat.mesures || []).map(m => ({ ...m })); cal.ref = etat.ref || null; cal.gabarit = etat.gabarit ? migrerGabarit({ ...etat.gabarit }) : null;
         const src = Medias.src(etat.media);
         if (src) {
             // Le décodage de l'image est asynchrone : on l'annonce, sinon l'écran
@@ -1917,9 +1917,11 @@ function calPointerDown(e) {
         const pos = { x: e.clientX - r.left, y: e.clientY - r.top };
         if (cal.mode === 'caler' && cal.gabarit) {
             const p = versImage(pos.x, pos.y); const d = dimsGabarit(); const g = cal.gabarit;
-            const tolerance = 24 / cal.zoom;
-            if (Math.hypot(p.x - (g.x + d.w), p.y - (g.y + d.h)) < tolerance) { calGab = { type: 'coin' }; calDrag = null; return; }
-            if (p.x >= g.x && p.x <= g.x + d.w && p.y >= g.y && p.y <= g.y + d.h) { calGab = { type: 'deplacer', dx: p.x - g.x, dy: p.y - g.y }; calDrag = null; return; }
+            const tol = 26 / cal.zoom;
+            const l = gabaritVersLocal(p);
+            if (Math.hypot(l.x, l.y + d.h / 2 + 36 / cal.zoom) < tol) { calGab = { type: 'tourner' }; calDrag = null; return; }
+            if (Math.hypot(l.x - d.w / 2, l.y - d.h / 2) < tol) { calGab = { type: 'coin', ancre: gabaritVersImage(-d.w / 2, -d.h / 2) }; calDrag = null; return; }
+            if (Math.abs(l.x) <= d.w / 2 && Math.abs(l.y) <= d.h / 2) { calGab = { type: 'deplacer', dx: p.x - g.cx, dy: p.y - g.cy }; calDrag = null; return; }
         }
         calDrag = { depart: pos, bouge: false, ox: cal.ox, oy: cal.oy };
     }
@@ -1938,8 +1940,23 @@ function calPointerMove(e) {
     }
     if (calGab && cal.gabarit) {
         const p = versImage(pos.x, pos.y); const g = cal.gabarit;
-        if (calGab.type === 'deplacer') { g.x = p.x - calGab.dx; g.y = p.y - calGab.dy; }
-        else { g.w = Math.max(12 / cal.zoom, p.x - g.x); }   // les proportions suivent les cotes du terrain
+        if (calGab.type === 'deplacer') { g.cx = p.x - calGab.dx; g.cy = p.y - calGab.dy; }
+        else if (calGab.type === 'tourner') {
+            // La poignée se tient au-dessus du rectangle : d'où le quart de tour ajouté.
+            let a = Math.atan2(p.y - g.cy, p.x - g.cx) / RAD + 90;
+            a = (a % 360 + 360) % 360;
+            const droit = Math.round(a / 90) * 90;
+            if (Math.abs(a - droit) < 2.5) a = droit % 360;   // aimantation sur les axes du plan
+            g.ang = Math.round(a * 2) / 2;
+        } else {
+            // Coin tiré : l'angle opposé reste fixe, les proportions suivent le relevé.
+            const { ux, uy, vx, vy } = axesGabarit();
+            const nw = Math.max(12 / cal.zoom, (p.x - calGab.ancre.x) * ux + (p.y - calGab.ancre.y) * uy);
+            const nh = nw * (+g.larg / +g.l);
+            g.w = nw;
+            g.cx = calGab.ancre.x + (nw / 2) * ux + (nh / 2) * vx;
+            g.cy = calGab.ancre.y + (nw / 2) * uy + (nh / 2) * vy;
+        }
         majInterfaceCalque(); dessinerCalque();
         return;
     }
@@ -2038,13 +2055,33 @@ function calibrageDeuxPoints() {
 /* --- Gabarit : le rectangle coté d'une pièce relevée, posé sur le plan ---
    Ses proportions sont figées par les cotes du terrain ; le redimensionner
    revient à régler l'échelle du plan, et son ajustement vaut vérification. */
+const RAD = Math.PI / 180;
 const dimsGabarit = () => {
     const g = cal.gabarit; if (!g) return null;
-    const mL = g.rot ? +g.larg : +g.l;      // mètres portés par la largeur du rectangle
-    const mH = g.rot ? +g.l : +g.larg;      // mètres portés par sa hauteur
-    return { w: g.w, h: g.w * (mH / mL), mL, mH };
+    // Le rectangle porte toujours la longueur sur son axe local x : l'incliner ne
+    // change donc pas l'échelle, seulement son orientation sur le plan.
+    return { w: g.w, h: g.w * (+g.larg / +g.l), mL: +g.l, mH: +g.larg };
 };
 const echelleGabarit = () => { const d = dimsGabarit(); return d && d.w > 0 ? d.mL / d.w : 0; };
+// Repère propre au rectangle : origine au centre, axe x le long de la longueur.
+const gabaritVersLocal = p => {
+    const g = cal.gabarit; const a = -(g.ang || 0) * RAD;
+    const dx = p.x - g.cx, dy = p.y - g.cy;
+    return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) };
+};
+const gabaritVersImage = (lx, ly) => {
+    const g = cal.gabarit; const a = (g.ang || 0) * RAD;
+    return { x: g.cx + lx * Math.cos(a) - ly * Math.sin(a), y: g.cy + lx * Math.sin(a) + ly * Math.cos(a) };
+};
+const axesGabarit = () => { const a = (cal.gabarit.ang || 0) * RAD; return { ux: Math.cos(a), uy: Math.sin(a), vx: -Math.sin(a), vy: Math.cos(a) }; };
+// Gabarits enregistrés avant la rotation libre : coin haut-gauche et bascule 0/90.
+function migrerGabarit(g) {
+    if (!g || g.cx !== undefined) return g;
+    const mL = g.rot ? +g.larg : +g.l, mH = g.rot ? +g.l : +g.larg;
+    const h = g.w * (mH / mL);
+    return { pieceId: g.pieceId, nom: g.nom, l: +g.l, larg: +g.larg, ang: g.rot ? 90 : 0,
+             w: g.rot ? g.w * (+g.l / +g.larg) : g.w, cx: g.x + g.w / 2, cy: g.y + h / 2 };
+}
 
 async function demarrerGabarit() {
     const pieces = piecesCourantes();
@@ -2060,16 +2097,21 @@ async function demarrerGabarit() {
     const { w, h } = tailleCalque();
     const centre = versImage(w / 2, h / 2);
     const largeurPx = (w * 0.45) / cal.zoom;
-    cal.gabarit = { pieceId: p.id, nom: p.nom, l: +p.l, larg: +p.larg, rot: 0, w: largeurPx, x: centre.x - largeurPx / 2, y: 0 };
-    cal.gabarit.y = centre.y - dimsGabarit().h / 2;
+    cal.gabarit = { pieceId: p.id, nom: p.nom, l: +p.l, larg: +p.larg, ang: 0, w: largeurPx, cx: centre.x, cy: centre.y };
     cal.mode = 'caler'; cal.calib = [];
     majInterfaceCalque(); dessinerCalque();
-    toast('Glissez le rectangle sur la pièce, puis tirez son coin pour l’ajuster', { duree: 5000 });
+    toast('Glissez le rectangle, tirez son coin pour l’ajuster, sa poignée haute pour l’incliner', { duree: 5500 });
 }
 function pivoterGabarit() {
     if (!cal.gabarit) return;
-    cal.gabarit.rot = cal.gabarit.rot ? 0 : 1;
-    majInterfaceCalque(); dessinerCalque();
+    cal.gabarit.ang = ((cal.gabarit.ang || 0) + 90) % 360;
+    sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+}
+function redresserGabarit() {
+    if (!cal.gabarit) return;
+    cal.gabarit.ang = Math.round((cal.gabarit.ang || 0) / 90) * 90 % 360;
+    sauverEtatCalque(); majInterfaceCalque(); dessinerCalque();
+    toast('Rectangle redressé sur les axes du plan');
 }
 function annulerGabarit() {
     cal.gabarit = null; cal.mode = cal.echelle ? 'tracer' : 'calibrer';
@@ -2241,7 +2283,9 @@ function majInterfaceCalque() {
                     const ecart = (ech - cal.echelle) / cal.echelle * 100;
                     comparaison = `<br><span style="font-size:12px; color:${Math.abs(ecart) < 2 ? 'var(--ok)' : '#B45309'};">Écart avec l’échelle actuelle : ${ecart > 0 ? '+' : ''}${ecart.toFixed(1)} %${Math.abs(ecart) < 2 ? ' — les deux concordent' : ' — vérifiez le plan ou le relevé'}</span>`;
                 }
-                res.innerHTML = `🔲 <b>Calage sur ${esc(cal.gabarit.nom)}</b> — ${d.mL.toFixed(2)} × ${d.mH.toFixed(2)} m<br><span style="font-size:12px;">Le plan couvrirait <b>${largeur.toFixed(1)} m</b> de large. Glissez le rectangle, tirez son coin, puis validez.</span>${comparaison}`;
+                const ang = ((cal.gabarit.ang || 0) % 360 + 360) % 360;
+                const incl = ang % 90 === 0 ? (ang === 0 ? 'aligné sur le plan' : `pivoté de ${ang}°`) : `incliné de ${ang.toFixed(1)}°`;
+                res.innerHTML = `🔲 <b>Calage sur ${esc(cal.gabarit.nom)}</b> — ${d.mL.toFixed(2)} × ${d.mH.toFixed(2)} m · ${incl}<br><span style="font-size:12px;">Le plan couvrirait <b>${largeur.toFixed(1)} m</b> de large. Glissez le rectangle, tirez son coin, inclinez-le par la poignée haute, puis validez.</span>${comparaison}`;
             }
             else if (!cal.echelle) res.innerHTML = '📏 <b>Échelle à régler</b><br><span style="font-size:12px;">Touchez « Calibrer » : calez une pièce mesurée, ou pointez les deux bouts d’une cote connue.</span>';
             else if (cal.mode === 'mesurer') res.innerHTML = `📐 <b>Relevé de cotes</b><br><span style="font-size:12px;">Pointez deux extrémités : la cote est enregistrée avec son nom. ${cal.calib.length === 1 ? 'Premier point posé…' : ''}</span>`;
@@ -2277,34 +2321,42 @@ function dessinerCalque() {
         ctx.stroke(); ctx.setLineDash([]);
         cal.calib.forEach(p => { const e = versEcran(p); ctx.beginPath(); ctx.arc(e.x, e.y, 7, 0, 7); ctx.fillStyle = '#D97706'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); });
     }
-    // Gabarit de pièce : rectangle aux cotes du terrain, posé sur le plan
+    // Gabarit de pièce : rectangle aux cotes du terrain, posé et incliné sur le plan
     if (cal.gabarit) {
         const d = dimsGabarit(); const g = cal.gabarit;
-        const a = versEcran({ x: g.x, y: g.y });
+        const c = versEcran({ x: g.cx, y: g.cy });
         const W = d.w * cal.zoom, H = d.h * cal.zoom;
         const actif = cal.mode === 'caler';
+        ctx.save();
+        ctx.translate(c.x, c.y); ctx.rotate((g.ang || 0) * RAD);
         ctx.fillStyle = actif ? 'rgba(217,119,6,0.16)' : 'rgba(217,119,6,0.06)';
-        ctx.fillRect(a.x, a.y, W, H);
+        ctx.fillRect(-W / 2, -H / 2, W, H);
         ctx.strokeStyle = '#D97706'; ctx.lineWidth = actif ? 3 : 2;
         ctx.setLineDash(actif ? [] : [6, 4]);
-        ctx.strokeRect(a.x, a.y, W, H);
+        ctx.strokeRect(-W / 2, -H / 2, W, H);
         ctx.setLineDash([]);
-        // Cotes portées par le rectangle
-        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        const etiquette = (txt, cx, cy) => {
-            const tw = ctx.measureText(txt).width;
-            ctx.fillStyle = 'rgba(255,251,235,0.96)'; ctx.fillRect(cx - tw / 2 - 5, cy - 10, tw + 10, 20);
-            ctx.strokeStyle = '#FDE68A'; ctx.lineWidth = 1; ctx.strokeRect(cx - tw / 2 - 5, cy - 10, tw + 10, 20);
-            ctx.fillStyle = '#B45309'; ctx.fillText(txt, cx, cy);
-        };
-        if (W > 54) etiquette(d.mL.toFixed(2) + ' m', a.x + W / 2, a.y + 12);
-        if (H > 40) etiquette(d.mH.toFixed(2) + ' m', a.x + Math.min(34, W / 2), a.y + H / 2);
-        if (H > 26 && W > 70) { ctx.font = 'bold 11px sans-serif'; etiquette(g.nom, a.x + W / 2, a.y + H - 12); }
         if (actif) {
-            // Poignée d'ajustement, au coin bas droit
-            ctx.beginPath(); ctx.arc(a.x + W, a.y + H, 11, 0, 7);
-            ctx.fillStyle = '#D97706'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+            // Poignée de rotation, reliée au bord haut ; poignée d'échelle au coin
+            const yr = -H / 2 - 36;   // 36 px à l'écran, comme la zone sensible
+            ctx.beginPath(); ctx.moveTo(0, -H / 2); ctx.lineTo(0, yr); ctx.strokeStyle = '#D97706'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, yr, 11, 0, 7); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#D97706'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); ctx.arc(W / 2, H / 2, 11, 0, 7); ctx.fillStyle = '#D97706'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
         }
+        ctx.restore();
+
+        // Cotes et nom, tenus à l'horizontale pour rester lisibles quelle que soit l'inclinaison
+        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const etiquette = (txt, lx, ly) => {
+            const e = versEcran(gabaritVersImage(lx, ly));
+            const tw = ctx.measureText(txt).width;
+            ctx.fillStyle = 'rgba(255,251,235,0.96)'; ctx.fillRect(e.x - tw / 2 - 5, e.y - 10, tw + 10, 20);
+            ctx.strokeStyle = '#FDE68A'; ctx.lineWidth = 1; ctx.strokeRect(e.x - tw / 2 - 5, e.y - 10, tw + 10, 20);
+            ctx.fillStyle = '#B45309'; ctx.fillText(txt, e.x, e.y);
+        };
+        const grand = Math.min(W, H);
+        if (Math.max(W, H) > 54) etiquette(d.mL.toFixed(2) + ' m', 0, -d.h / 2);
+        if (grand > 40) etiquette(d.mH.toFixed(2) + ' m', -d.w / 2, 0);
+        if (grand > 46) { ctx.font = 'bold 11px sans-serif'; etiquette(g.nom, 0, 0); }
     }
 
     // Cotes enregistrées

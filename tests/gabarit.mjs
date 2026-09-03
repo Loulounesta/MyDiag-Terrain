@@ -1,5 +1,5 @@
-/* Calage d'une pièce mesurée sur un plan : rectangle coté, ajustement,
-   échelle déduite et vérification croisée avec un second calage.
+/* Calage d'une pièce mesurée sur un plan : rectangle coté, ajustement, rotation
+   libre, échelle déduite et vérification croisée avec un second calage.
    Prérequis : npm i -D playwright && npx playwright install chromium
    Lancement : python3 -m http.server 8765  (à la racine du dépôt)
               node tests/gabarit.mjs */
@@ -55,36 +55,85 @@ check((await page.locator('#cal-resultat').innerText()).includes('5.00 × 4.00 m
 
 console.log('3. Redimensionnement : l\'échelle suit');
 const ech0 = await page.evaluate(() => echelleGabarit());
-const boite = await page.locator('#calque-canvas').boundingBox();
-const ecran = async (ix, iy) => { const v = await page.evaluate(() => ({ zoom: cal.zoom, ox: cal.ox, oy: cal.oy })); return { x: boite.x + ix * v.zoom + v.ox, y: boite.y + iy * v.zoom + v.oy }; };
-// Tirer la poignée du coin pour doubler la largeur
-const g1 = await page.evaluate(() => ({ ...cal.gabarit, ...dimsGabarit() }));
-const depart = await ecran(g1.x + g1.w, g1.y + g1.h);
-const arrivee = await ecran(g1.x + g1.w * 2, g1.y + g1.h);
+// Conversion image → écran, relue à chaque fois (la mise en page bouge)
+const versEcranTest = async pt => {
+  const v = await page.evaluate(() => ({ zoom: cal.zoom, ox: cal.ox, oy: cal.oy }));
+  const b = await page.locator('#calque-canvas').boundingBox();
+  return { x: b.x + pt.x * v.zoom + v.ox, y: b.y + pt.y * v.zoom + v.oy };
+};
+const coinGabarit = () => page.evaluate(() => { const d = dimsGabarit(); return gabaritVersImage(d.w / 2, d.h / 2); });
+const ancreGabarit = () => page.evaluate(() => { const d = dimsGabarit(); return gabaritVersImage(-d.w / 2, -d.h / 2); });
+const w0 = await page.evaluate(() => cal.gabarit.w);
+const coin0 = await coinGabarit(), ancre0 = await ancreGabarit();
+// Tirer le coin pour doubler la largeur, l'angle opposé restant fixe
+const depart = await versEcranTest(coin0);
+const arrivee = await versEcranTest({ x: ancre0.x + 2 * (coin0.x - ancre0.x), y: ancre0.y + 2 * (coin0.y - ancre0.y) });
 await page.mouse.move(depart.x, depart.y); await page.mouse.down();
 await page.mouse.move(arrivee.x, arrivee.y, { steps: 8 }); await page.mouse.up();
 await page.waitForTimeout(200);
-const g2 = await page.evaluate(() => ({ ...cal.gabarit, ...dimsGabarit() }));
-check(Math.abs(g2.w / g1.w - 2) < 0.1, `largeur doublée (${(g2.w / g1.w).toFixed(2)}×)`);
-check(Math.abs(g2.h / g2.w - 4 / 5) < 1e-6, 'proportions conservées après ajustement');
-const ech1 = await page.evaluate(() => echelleGabarit());
-check(Math.abs(ech1 / ech0 - 0.5) < 0.06, 'échelle divisée par deux quand le rectangle double');
+const w1 = await page.evaluate(() => cal.gabarit.w);
+check(Math.abs(w1 / w0 - 2) < 0.08, `largeur doublée (${(w1 / w0).toFixed(2)}×)`);
+const d1 = await page.evaluate(() => dimsGabarit());
+check(Math.abs(d1.h / d1.w - 4 / 5) < 1e-6, 'proportions conservées après ajustement');
+check(Math.abs(await page.evaluate(() => echelleGabarit()) / ech0 - 0.5) < 0.06, 'échelle divisée par deux quand le rectangle double');
+const ancre1 = await ancreGabarit();
+check(Math.hypot(ancre1.x - ancre0.x, ancre1.y - ancre0.y) < 3, 'l\'angle opposé n\'a pas bougé');
 
-console.log('4. Déplacement et rotation');
-const avantDep = await page.evaluate(() => ({ x: cal.gabarit.x, y: cal.gabarit.y }));
-const g3 = await page.evaluate(() => ({ ...cal.gabarit, ...dimsGabarit() }));
-const p1 = await ecran(g3.x + g3.w / 2, g3.y + g3.h / 2);
-const p2 = await ecran(g3.x + g3.w / 2 + 120, g3.y + g3.h / 2 + 60);
+console.log('4. Déplacement et quart de tour');
+const avantDep = await page.evaluate(() => ({ x: cal.gabarit.cx, y: cal.gabarit.cy }));
+const p1 = await versEcranTest(avantDep);
+const p2 = await versEcranTest({ x: avantDep.x + 120, y: avantDep.y + 60 });
 await page.mouse.move(p1.x, p1.y); await page.mouse.down(); await page.mouse.move(p2.x, p2.y, { steps: 8 }); await page.mouse.up();
 await page.waitForTimeout(200);
-const apresDep = await page.evaluate(() => ({ x: cal.gabarit.x, y: cal.gabarit.y }));
+const apresDep = await page.evaluate(() => ({ x: cal.gabarit.cx, y: cal.gabarit.cy }));
 check(Math.abs(apresDep.x - avantDep.x - 120) < 6 && Math.abs(apresDep.y - avantDep.y - 60) < 6, 'rectangle déplacé au doigt');
 const echAvantRot = await page.evaluate(() => echelleGabarit());
-await page.click('#cal-gabarit-barre >> text=Pivoter');
+await page.click('#cal-gabarit-barre >> text=Quart de tour');
+check(await page.evaluate(() => cal.gabarit.ang) === 90, 'quart de tour appliqué');
+check(Math.abs(await page.evaluate(() => echelleGabarit()) - echAvantRot) < 1e-9, 'le quart de tour ne change pas l\'échelle');
 const dRot = await page.evaluate(() => dimsGabarit());
-check(dRot.mL === 4 && dRot.mH === 5, 'rotation : 4 m en largeur, 5 m en hauteur');
-check(Math.abs(await page.evaluate(() => echelleGabarit()) / echAvantRot - 0.8) < 1e-6, 'échelle recalculée après rotation');
-await page.click('#cal-gabarit-barre >> text=Pivoter');
+check(dRot.mL === 5 && dRot.mH === 4, 'le rectangle porte toujours 5 m sur sa longueur');
+await page.click('#cal-gabarit-barre >> text=Quart de tour');
+await page.click('#cal-gabarit-barre >> text=Quart de tour');
+await page.click('#cal-gabarit-barre >> text=Quart de tour');
+check(await page.evaluate(() => cal.gabarit.ang) === 0, 'quatre quarts de tour reviennent au départ');
+
+console.log('4 bis. Rotation libre à la poignée');
+// Rectangle ramené au centre de l'image, à une taille modeste : la poignée reste visible
+await page.evaluate(() => {
+  cal.gabarit.w = cal.img.width * 0.25;
+  cal.gabarit.cx = cal.img.width / 2; cal.gabarit.cy = cal.img.height / 2; cal.gabarit.ang = 0;
+  recentrerCalque(); majInterfaceCalque(); dessinerCalque();
+});
+await page.waitForTimeout(200);
+const echAvantLibre = await page.evaluate(() => echelleGabarit());
+// La poignée se trouve à 36 px au-dessus du bord haut, dans le repère du rectangle
+const posPoignee = async () => versEcranTest(await page.evaluate(() => { const d = dimsGabarit(); return gabaritVersImage(0, -d.h / 2 - 36 / cal.zoom); }));
+const centreEcran = async () => versEcranTest(await page.evaluate(() => ({ x: cal.gabarit.cx, y: cal.gabarit.cy })));
+const pg = await posPoignee(); const ce = await centreEcran();
+const rayon = Math.hypot(pg.x - ce.x, pg.y - ce.y);
+// Amener la poignée à 30° de la verticale
+const cible = { x: ce.x + rayon * Math.sin(30 * Math.PI / 180), y: ce.y - rayon * Math.cos(30 * Math.PI / 180) };
+await page.mouse.move(pg.x, pg.y); await page.mouse.down();
+await page.mouse.move(cible.x, cible.y, { steps: 10 }); await page.mouse.up();
+await page.waitForTimeout(200);
+const angLibre = await page.evaluate(() => cal.gabarit.ang);
+check(Math.abs(angLibre - 30) < 2, `inclinaison libre obtenue : ${angLibre}°`);
+check(Math.abs(await page.evaluate(() => echelleGabarit()) - echAvantLibre) < 1e-9, 'incliner ne change pas l\'échelle');
+check((await page.locator('#cal-resultat').innerText()).includes('incliné de'), 'inclinaison annoncée sous le plan');
+// Aimantation : à 1° d'un axe, on retombe pile dessus
+const cible2 = { x: ce.x + rayon * Math.sin(1 * Math.PI / 180), y: ce.y - rayon * Math.cos(1 * Math.PI / 180) };
+const pg2 = await posPoignee();
+await page.mouse.move(pg2.x, pg2.y); await page.mouse.down();
+await page.mouse.move(cible2.x, cible2.y, { steps: 10 }); await page.mouse.up();
+await page.waitForTimeout(200);
+const angSnap = await page.evaluate(() => cal.gabarit.ang);
+check(angSnap === 0, `aimantation sur l'axe du plan (obtenu ${angSnap}°)`);
+// Redresser depuis une inclinaison quelconque
+await page.evaluate(() => { cal.gabarit.ang = 74; majInterfaceCalque(); dessinerCalque(); });
+await page.click('#cal-gabarit-barre >> text=Redresser');
+check(await page.evaluate(() => cal.gabarit.ang) === 90, 'bouton Redresser aligne sur le quart de tour le plus proche');
+await page.evaluate(() => { cal.gabarit.ang = 0; majInterfaceCalque(); dessinerCalque(); });
 
 console.log('5. Validation et vérification croisée');
 const echAttendue = await page.evaluate(() => echelleGabarit());
