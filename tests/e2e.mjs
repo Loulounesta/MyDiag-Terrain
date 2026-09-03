@@ -216,6 +216,7 @@ check(await page.evaluate(() => typeof window.XLSX === 'undefined'), 'XLSX non c
 await page.click('.nav-zone[data-zone="plus"]'); await page.click('.nav-vue[data-vue="export"]');
 const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('text=Export Excel')]);
 check(dlx.suggestedFilename().endsWith('.xlsx'), 'fichier Excel généré : ' + dlx.suggestedFilename());
+check(!(await page.locator('#maj-banner').isVisible()), 'bandeau de mise à jour réellement masqué à l\'écran');
 check(await page.evaluate(() => typeof window.XLSX !== 'undefined'), 'XLSX chargé à la demande');
 
 console.log('13. Captures d\'écran');

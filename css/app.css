@@ -41,6 +41,11 @@ body.has-ab { padding-bottom: calc(var(--ab-h) + 24px + var(--sab)); }
 input, select, textarea, button { font-family: inherit; }
 input, select, textarea { font-size: 16px; }
 
+/* L'attribut hidden doit toujours l'emporter : une règle display: flex/grid/block
+   sur un composant masqué le rendrait visible malgré [hidden] (cas du bandeau
+   de mise à jour, qui restait affiché en permanence). */
+[hidden] { display: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
