@@ -1,15 +1,15 @@
-/* Rattachement des ouvrants à leur mur, gommettes fenêtres et portes,
-   régénération des plans hors écran, et export PDF du dossier de plans —
-   dont le contenu est relu avec pdf.js pour vérifier cotes, gommettes,
+/* Rattachement des ouvrants à leur pièce et à leur mur, gommettes fenêtres et
+   portes, régénération des plans hors écran, et export PDF du dossier de plans —
+   dont le contenu est relu avec pdf.js pour vérifier cotes, gommettes, pièces,
    murs associés et images réellement intégrées.
    Prérequis : npm i -D playwright && npx playwright install chromium
    Lancement : python3 -m http.server 8765  (à la racine du dépôt)
               node tests/pdf-murs.mjs */
 import { chromium } from 'playwright';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import os from 'node:os';
 const SP = path.dirname(fileURLToPath(import.meta.url)) + '/fixtures';
 const erreurs = []; let ok = 0, ko = 0;
 const check = (c, m) => { c ? ok++ : ko++; console.log(c ? '  ✓' : '  ✗', m); };
@@ -123,6 +123,38 @@ check(await page.evaluate(() => document.querySelectorAll('canvas').length) === 
 const vide = await page.evaluate(() => imagePlanPieces('a2-inexistant', 0, 300, 200));
 check(vide === null, 'lot sans pièce : pas d\'image');
 
+console.log('4 bis. Rattachement à la pièce');
+// La gommette de F1 est tombée dans le Séjour (0..5 × 0..4), celle de P1 dans la Chambre (5..9)
+check(await page.evaluate(() => db.fens[0].pieceId) === 1, 'la fenêtre est rattachée à la pièce sous la gommette');
+check(await page.evaluate(() => db.portes[0].pieceId) === 2, 'la porte est rattachée à sa pièce');
+check((await page.locator('#sys-toast').innerText()).includes('Chambre'), 'la pièce reconnue est annoncée à la pose');
+// Un déplacement vers une autre pièce met le rattachement à jour
+await page.evaluate(() => { gomSel = null; dessinerPlanPieces(); });
+const posF = await page.evaluate(() => db.fens[0].posPlan);
+const dep = await versEcranPlan(posF), arr = await versEcranPlan({ x: 7, y: 1 });
+await page.mouse.move(dep.x, dep.y - 24); await page.mouse.down();
+await page.mouse.move(arr.x, arr.y, { steps: 8 }); await page.mouse.up();
+await page.waitForTimeout(300);
+check(await page.evaluate(() => db.fens[0].pieceId) === 2, 'le rattachement suit le déplacement de la gommette');
+// Remise dans le Séjour pour la suite
+const dep2 = await versEcranPlan(await page.evaluate(() => db.fens[0].posPlan));
+const arr2 = await versEcranPlan({ x: 2.5, y: 1 });
+await page.mouse.move(dep2.x, dep2.y - 24); await page.mouse.down();
+await page.mouse.move(arr2.x, arr2.y, { steps: 8 }); await page.mouse.up();
+await page.waitForTimeout(300);
+check(await page.evaluate(() => db.fens[0].pieceId) === 1, 'retour dans le Séjour');
+check((await page.locator('#list-pieces').innerText()).includes('1.56 m²'), 'surface vitrée affichée sur la pièce');
+// Choix manuel dans le formulaire
+await page.click('.nav-zone[data-zone="parois"]'); await page.click('.nav-vue[data-vue="fen"]');
+await page.selectOption('#fen-target', 'a1');
+await page.waitForTimeout(200);
+const optsPiece = await page.locator('#f-piece option').allInnerTexts();
+check(optsPiece.length === 3 && optsPiece[1].includes('Séjour') && optsPiece[1].includes('20.0 m²'), `pièces proposées : ${optsPiece[1]}`);
+check((await page.locator('#list-fens .item-row').innerText()).includes('Séjour'), 'pièce rappelée dans la liste des fenêtres');
+await page.click('.nav-zone[data-zone="dossier"]'); await page.click('.nav-vue[data-vue="pieces"]');
+await page.selectOption('#pie-target', 'a1');
+await page.waitForTimeout(300);
+
 console.log('5 bis. Calque : cote et gommette');
 await page.click('.nav-vue[data-vue="calque"]');
 await page.selectOption('#cal-target', 'a1');
@@ -204,6 +236,9 @@ check(pagePlan.includes('Lot E01'), 'lot identifié sur la page');
 check(pagePlan.includes('F1') && pagePlan.includes('Fenêtre'), 'la fenêtre figure dans la légende');
 check(pagePlan.includes('P1') && pagePlan.includes('Porte'), 'la porte figure dans la légende');
 check(pagePlan.includes('Nord') && pagePlan.includes('5×2.5 m'), 'le mur associé à la fenêtre est repris');
+check(pagePlan.includes('Pièce') && pagePlan.includes('Séjour') && pagePlan.includes('Chambre'), 'les pièces des ouvrants figurent au PDF');
+check(pagePlan.includes('Pièces relevées') && pagePlan.includes('Surface vitrée'), 'tableau des pièces avec leur surface vitrée');
+check(pagePlan.includes('20.00 m²') && pagePlan.includes('1.56 m²'), 'surfaces au sol et vitrée détaillées');
 check(pagePlan.includes('Est') && pagePlan.includes('4×2.5 m'), 'le mur associé à la porte est repris');
 check((pagePlan.match(/oui/g) || []).length === 2, 'les deux ouvrants sont marqués repérés');
 check(contenu.images >= 2, `les deux plans sont intégrés en image (${contenu.images})`);

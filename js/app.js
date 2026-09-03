@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.7';
-const CACHE_VERSION = 'mydiag-v9-7'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.8';
+const CACHE_VERSION = 'mydiag-v9-8'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -366,8 +366,8 @@ function goTab(tabId, opts = {}) {
     if (VUES_PAROIS.includes(tabId)) {
         resetEditParoi(); verifierAptActif(tabId); renderElementsList(tabId);
         if (tabId === 'murs') { drawCroquis(); majResumeIso(); }
-        if (tabId === 'fen') peuplerMursDispo('f-mur', '');
-        if (tabId === 'portes') peuplerMursDispo('po-mur', '');
+        if (tabId === 'fen') { peuplerMursDispo('f-mur', ''); peuplerPiecesDispo('f-piece', ''); }
+        if (tabId === 'portes') { peuplerMursDispo('po-mur', ''); peuplerPiecesDispo('po-piece', ''); }
         if (tabId === 'pieces') { renderChipsPieces(); majApercuPiece(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     }
     majBarreAction();
@@ -1026,8 +1026,8 @@ function changeTargetApt(val, tab) {
     resetEditParoi(); curAppt = val; curNivInt = 0;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
-    if (tab === 'fen') peuplerMursDispo('f-mur', '');
-    if (tab === 'portes') peuplerMursDispo('po-mur', '');
+    if (tab === 'fen') { peuplerMursDispo('f-mur', ''); peuplerPiecesDispo('f-piece', ''); }
+    if (tab === 'portes') { peuplerMursDispo('po-mur', ''); peuplerPiecesDispo('po-piece', ''); }
     if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
@@ -1035,8 +1035,8 @@ function setNivInt(i, tab) {
     resetEditParoi(); curNivInt = i;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
-    if (tab === 'fen') peuplerMursDispo('f-mur', '');
-    if (tab === 'portes') peuplerMursDispo('po-mur', '');
+    if (tab === 'fen') { peuplerMursDispo('f-mur', ''); peuplerPiecesDispo('f-piece', ''); }
+    if (tab === 'portes') { peuplerMursDispo('po-mur', ''); peuplerPiecesDispo('po-piece', ''); }
     if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
@@ -1064,13 +1064,13 @@ function sauverParoi(type) {
         if (!existingMod) { existingMod = { id: 'mod_' + Date.now(), nom: `[${fori}] ${dimStr} | ${shortFer} (${fmotifs} motif(s))`, type: ftype, mat: fmat, vit: fvit, ep: fep, fer: ffer, l: fl, h: fh, diam: fdiam, ori: fori, motifs: fmotifs }; db.modelesFens.push(existingMod); renderBibliFens(); }
         if (!editParoiId) el.nom = 'F' + (db.modelesFens.indexOf(existingMod) + 1);
         el.ori = fori; el.type = ftype; el.mat = fmat; el.vit = fvit; el.ep = fep; el.fer = ffer; el.l = fl; el.h = fh; el.diam = fdiam; el.surf = fsurf; el.nb = v('f-nb'); el.motifs = fmotifs;
-        el.murId = v('f-mur') || '';
+        el.murId = v('f-mur') || ''; el.pieceId = v('f-piece') || '';
         const excesF = verifierPercement(murDe(el), parseFloat(fsurf) * (parseFloat(el.nb) || 1), el.id);
         if (excesF) avertissement = `Enregistré, mais les ouvrants de ce mur totalisent ${excesF.total.toFixed(2)} m² pour une façade de ${excesF.surfMur.toFixed(2)} m²`;
     } else if (type === 'portes') {
         if (!v('po-l') || !v('po-h')) { toast('⚠️ Largeur et hauteur requises'); $(v('po-l') ? 'po-h' : 'po-l').focus(); return; }
         el.type = v('po-type'); el.mat = v('po-mat'); el.donne = v('po-donne'); el.iso = v('po-iso'); el.sas = v('po-sas'); el.l = v('po-l'); el.h = v('po-h');
-        el.murId = v('po-mur') || '';
+        el.murId = v('po-mur') || ''; el.pieceId = v('po-piece') || '';
         const excesP = verifierPercement(murDe(el), (parseFloat(el.l) || 0) * (parseFloat(el.h) || 0), el.id);
         if (excesP) avertissement = `Enregistré, mais les ouvrants de ce mur totalisent ${excesP.total.toFixed(2)} m² pour une façade de ${excesP.surfMur.toFixed(2)} m²`;
     } else if (type === 'plfs') {
@@ -1113,10 +1113,10 @@ function editerParoi(type, id) {
         if ((p.iso && p.iso !== 'Non') || (p.doub && p.doub !== 'ABSENT')) ouvrirAcc('acc-iso-murs'); majResumeIso();
     } else if (type === 'fens') {
         set('f-ori', p.ori || 'Nord'); set('f-type', p.type); toggleFenType(); set('f-mat', p.mat); set('f-vit', p.vit); set('f-ep', p.ep || ''); set('f-fer', p.fer); set('f-l', p.l || ''); set('f-h', p.h || ''); set('f-diam', p.diam || ''); set('f-nb', p.nb || '1'); set('f-motifs', p.motifs || '1');
-        peuplerMursDispo('f-mur', p.murId);
+        peuplerMursDispo('f-mur', p.murId); peuplerPiecesDispo('f-piece', p.pieceId);
     } else if (type === 'portes') {
         set('po-type', p.type || 'Porte opaque pleine'); set('po-mat', p.mat || 'Bois'); set('po-donne', p.donne || 'Extérieur'); set('po-iso', p.iso || 'Non isolée / Inconnue'); set('po-sas', p.sas || 'Non'); set('po-l', p.l || ''); set('po-h', p.h || '');
-        peuplerMursDispo('po-mur', p.murId);
+        peuplerMursDispo('po-mur', p.murId); peuplerPiecesDispo('po-piece', p.pieceId);
     } else if (type === 'plfs') {
         set('p-type', p.type); set('p-donne', p.donne); set('p-l', p.l || ''); set('p-larg', p.larg || ''); set('p-s', p.s || ''); set('p-iso', p.iso || 'Non'); set('p-iso-ep', p.isoEp || '');
     } else if (type === 'pieces') {
@@ -1160,7 +1160,9 @@ function renderElementsList(tabId) {
             dimText = x.type === 'Hublot' ? `Ø: ${esc(x.diam || '?')}cm (Surf: ${esc(x.surf || '?')}m²) | Lame: ${esc(x.ep || '?')}mm | Qté: ${esc(x.nb || 1)} (Motifs: ${esc(x.motifs || 1)})` : `Dim: ${esc(x.l || '?')}x${esc(x.h || '?')}cm | Lame: ${esc(x.ep || '?')}mm | Qté: ${esc(x.nb || 1)} (Motifs: ${esc(x.motifs || 1)})`;
             titleText = `${x.nom ? esc(x.nom) + ' - ' : ''}${esc(x.type || '')}`;
             const murF = murDe(x);
-            dimText = `${esc(x.mat || '')} | ${esc(x.vit || '')}<br>Fermeture : ${esc(x.fer || 'Absence')}<br>` + dimText + (murF ? `<br>🧱 Mur ${esc(murF.ori || '')} ${esc(murF.l || '')}×${esc(murF.h || '')} m` : '');
+            const pieceF = pieceDe(x);
+            dimText = `${esc(x.mat || '')} | ${esc(x.vit || '')}<br>Fermeture : ${esc(x.fer || 'Absence')}<br>` + dimText
+                + (pieceF ? `<br>🏠 ${esc(pieceF.nom || 'Pièce')}` : '') + (murF ? `${pieceF ? ' · ' : '<br>'}🧱 Mur ${esc(murF.ori || '')} ${esc(murF.l || '')}×${esc(murF.h || '')} m` : '');
         } else if (type === 'plfs' || type === 'plas') {
             dimText = x.s ? `Surf: ${esc(x.s)}m²` : `Dim: ${esc(x.l || '?')} x ${esc(x.larg || '?')}m`;
             if (x.iso && x.iso !== 'Non') dimText += ` | Iso: ${esc(x.iso)}${x.isoEp ? ' ' + esc(x.isoEp) + 'cm' : ''}`; titleText = esc(titleText);
@@ -1170,7 +1172,8 @@ function renderElementsList(tabId) {
             titleText = (x.vectX !== undefined) ? 'Mur (Fermeture auto)' : esc(titleText);
         } else if (type === 'portes') {
             dimText = `Dim: ${esc(x.l || '?')} x ${esc(x.h || '?')}m | Iso: ${esc(x.iso || 'Non')} | Sas: ${esc(x.sas || 'Non')}`;
-            const murP = murDe(x); if (murP) dimText += `<br>🧱 Mur ${esc(murP.ori || '')} ${esc(murP.l || '')}×${esc(murP.h || '')} m`;
+            const pieceP = pieceDe(x); if (pieceP) dimText += `<br>🏠 ${esc(pieceP.nom || 'Pièce')}`;
+            const murP = murDe(x); if (murP) dimText += `${pieceP ? ' · ' : '<br>'}🧱 Mur ${esc(murP.ori || '')} ${esc(murP.l || '')}×${esc(murP.h || '')} m`;
             titleText = `${esc(x.type)} (${esc(x.mat || '?')})`;
         }
         const badgeText = type === 'fens' ? esc(x.ori || 'N/A') : (type === 'portes' ? 'Porte' : esc(x.ori || 'Surf.'));
@@ -1281,7 +1284,7 @@ function renderRecapFens() {
                     <div class="recap-rep">${esc(f.nom || 'F?')}</div>
                     <div class="recap-info">
                         <div class="recap-titre">${esc(f.type || '')} · ${esc(f.ori || '')}${esc(libelleNiveau(f))}</div>
-                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}${murDe(f) ? `<br>🧱 Mur ${esc(murDe(f).ori || '')} ${esc(murDe(f).l || '')}×${esc(murDe(f).h || '')} m` : ''}</div>
+                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}${pieceDe(f) ? `<br>🏠 ${esc(pieceDe(f).nom || '')}` : ''}${murDe(f) ? `${pieceDe(f) ? ' · ' : '<br>'}🧱 Mur ${esc(murDe(f).ori || '')} ${esc(murDe(f).l || '')}×${esc(murDe(f).h || '')} m` : ''}</div>
                         <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²${f.posPlan || f.posCal ? ' · 📍 repérée sur plan' : ''}</div>
                     </div>
                     <div class="recap-actions">
@@ -1496,7 +1499,13 @@ function renderListePieces(cont) {
             <div style="flex:1; padding-right:12px; min-width:0;">
                 <div style="margin-bottom:4px;"><b style="font-size:15px; color:var(--tx);">${esc(p.nom || 'Pièce')}</b></div>
                 <div style="color:var(--tx2); font-size:12px; line-height:1.5;">${esc(p.l)} × ${esc(p.larg)} m${p.rot ? ' · pivotée' : ''}</div>
-                <div style="color:var(--acc); font-size:13px; font-weight:800; margin-top:3px;">${surfacePiece(p).toFixed(2)} m²</div>
+                <div style="color:var(--acc); font-size:13px; font-weight:800; margin-top:3px;">${surfacePiece(p).toFixed(2)} m²${(() => {
+                    const nf = db.fens.filter(f => String(f.pieceId) === String(p.id)).length;
+                    const np = db.portes.filter(x => String(x.pieceId) === String(p.id)).length;
+                    const sv = surfaceVitreePiece(p.id);
+                    if (!nf && !np) return '';
+                    return ` <span style="color:var(--tx2); font-weight:700;">· ${nf ? `🪟 ${nf} (${sv.toFixed(2)} m²)` : ''}${nf && np ? ' · ' : ''}${np ? `🚪 ${np}` : ''}</span>`;
+                })()}</div>
             </div>
             <div class="item-actions">
                 <button class="ico-btn ok" title="Dupliquer" data-act="clonerParoi" data-type="pieces" data-id="${p.id}">🔄</button>
@@ -1663,7 +1672,13 @@ function brancherPlanPieces() {
         dessinerPlanPieces();
     });
     const fin = () => {
-        if (gomDrag) { gomDrag = null; sauvegarderLocal(); rafraichirGommettes('pieces'); return; }
+        if (gomDrag) {
+            const o = trouverOuvrant(gomDrag.id);
+            if (o && o.posPlan) rattacherAPieceSous(o, o.posPlan);   // la pièce suit le déplacement
+            gomDrag = null; sauvegarderLocal(); rafraichirGommettes('pieces');
+            renderElementsList('pieces');
+            return;
+        }
         if (planDrag) { planDrag = null; sauvegarderLocal(); dessinerPlanPieces(); }
     };
     canvas.addEventListener('pointerup', fin);
@@ -1684,6 +1699,33 @@ function aimanter(valeur, piece, axe) {
         [b, b - taille].forEach(cand => { const e = Math.abs(cand - valeur); if (e < ecart) { ecart = e; meilleur = cand; } });
     });
     return Math.round((meilleur !== null ? meilleur : valeur) * 20) / 20;
+}
+
+/* --- Rattachement d'un ouvrant à sa pièce ---
+   Situer une fenêtre dans le séjour parle davantage que de la rattacher au mur
+   nord. Poser sa gommette sur le plan suffit : la pièce sous le doigt est
+   reconnue et retenue. Un identifiant devenu orphelin (pièce supprimée) est
+   simplement ignoré, ce qui laisse l'annulation faire son travail. */
+const pieceDe = o => o && o.pieceId ? db.pieces.find(p => String(p.id) === String(o.pieceId)) : null;
+function peuplerPiecesDispo(selectId, valeur) {
+    const sel = $(selectId); if (!sel) return;
+    const liste = piecesCourantes();
+    if (!liste.length) { sel.innerHTML = '<option value="">Aucune pièce saisie pour ce lot et ce niveau</option>'; return; }
+    sel.innerHTML = '<option value="">— Aucune pièce associée —</option>' +
+        liste.map(p => `<option value="${p.id}">${esc(p.nom || 'Pièce')} · ${surfacePiece(p).toFixed(1)} m²</option>`).join('');
+    setSelect(selectId, valeur || '');
+}
+// Pièce contenant un point du plan assemblé (coordonnées en mètres).
+function pieceSous(pt) {
+    return [...piecesCourantes()].reverse().find(p => {
+        if (p.x === undefined || p.y === undefined) return false;
+        const d = dimsPiece(p);
+        return pt.x >= p.x && pt.x <= p.x + d.w && pt.y >= p.y && pt.y <= p.y + d.h;
+    }) || null;
+}
+// Surface vitrée d'une pièce : utile pour juger l'éclairement au regard du sol.
+function surfaceVitreePiece(pieceId) {
+    return db.fens.filter(f => String(f.pieceId) === String(pieceId)).reduce((s, f) => s + surfaceFen(f), 0);
 }
 
 /* --- Rattachement d'un ouvrant à son mur ---
@@ -1787,14 +1829,21 @@ function poserGommette(support, pt) {
     const o = trouverOuvrant(gomArmee); if (!o) return false;
     o[champ] = { x: pt.x, y: pt.y };
     gomSel = o.id; gomArmee = null;
+    const piece = support === 'pieces' ? rattacherAPieceSous(o, pt) : null;
     sauvegarderLocal(); rafraichirGommettes(support);
-    toast(`${repereOuvrant(o, genreOuvrant(o))} posé sur le plan ✓`);
+    toast(`${repereOuvrant(o, genreOuvrant(o))} posé${piece ? ' dans « ' + piece.nom + ' »' : ''} ✓`);
     return true;
 }
 // La pastille est dessinée 24 px au-dessus de son point d'ancrage : c'est elle que
 // le doigt vise, la zone sensible doit donc suivre le dessin. `unite` convertit un
 // pixel écran dans le repère du support (mètres ou pixels d'image).
 const DECALAGE_GOM = 24, RAYON_GOM = 20;
+// Sur le plan des pièces, la gommette dit d'elle-même dans quelle pièce elle tombe.
+function rattacherAPieceSous(o, pt) {
+    const piece = pieceSous(pt);
+    o.pieceId = piece ? piece.id : '';
+    return piece;
+}
 function gommetteSous(support, pt, unite) {
     const champ = CHAMP_GOM[support];
     return ouvrantsCourants().map(x => x.o).filter(o => o[champ]).reverse().find(o => {
@@ -2920,9 +2969,11 @@ async function exportExcel() {
     feuille(db.appts.map(a => ({ "Lot": a.num, "Bâtiment": a.bat || "", "Type": a.type === 2 ? "Duplex" : a.type === 3 ? "Triplex" : "Plain-pied", "Étage": a.etage || "", "Niveau ADN": a.niveau || "", "Surface (m²)": a.surf || "", "HSP (m)": a.hsp || "" })), 'Appartements');
     feuille(db.murs.map(m => ({ "Lot": getAptNum(m.aid), "Niveau (Duplex)": m.nivInt || 0, "Orientation": m.ori || "Auto", "Donne sur": m.donne || "", "Matériau": m.mat || "", "Longueur (m)": m.l || "", "Hauteur (m)": m.h || "", "Épaisseur (cm)": m.ep || "", "Doublage": m.doub || "ABSENT", "Isolant": m.iso || "", "Ép. Isolant (cm)": m.isoEp || "" })), 'Murs');
     feuille(db.fens.map(f => ({ "Lot": getAptNum(f.aid), "Niveau": f.nivInt || 0, "Code ANALYSIMMO": genererCodeFen(f), "Repère": f.nom || "", "Orientation": f.ori || "", "Type": f.type || "", "Matériau": f.mat || "", "Vitrage": f.vit || "", "Ép. Lame (mm)": f.ep || "", "Fermeture": f.fer || "", "Largeur (cm)": f.l || "", "Hauteur (cm)": f.h || "", "Diamètre (cm)": f.diam || "", "Surface Unitaire (m²)": f.surf || "", "Quantité": f.nb || 1, "Motifs": f.motifs || 1,
+        "Pièce": pieceDe(f) ? (pieceDe(f).nom || "") : "",
         "Mur associé": murDe(f) ? libelleMur(murDe(f)) : "",
         "Repérée sur plan": [f.posPlan ? 'plan des pièces' : '', f.posCal ? 'plan décalqué' : ''].filter(Boolean).join(' + ') || "" })), 'Fenêtres');
     feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "",
+        "Pièce": pieceDe(p) ? (pieceDe(p).nom || "") : "",
         "Mur associé": murDe(p) ? libelleMur(murDe(p)) : "",
         "Repérée sur plan": [p.posPlan ? 'plan des pièces' : '', p.posCal ? 'plan décalqué' : ''].filter(Boolean).join(' + ') || "" })), 'Portes');
     feuille(db.plfs.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Plafonds');
@@ -2933,7 +2984,10 @@ async function exportExcel() {
         (etat.mesures || []).forEach(m => cotes.push({ "Lot": getAptNum(aid), "Niveau": niv, "Cote": m.nom || "", "Longueur (m)": (+m.m).toFixed(2), "Échelle du plan": etat.ref ? `${etat.ref.metres} m relevés${etat.ref.libelle ? ' sur ' + etat.ref.libelle : ''}` : "" }));
     });
     feuille(cotes, 'Cotes relevées');
-    feuille(db.pieces.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Pièce": p.nom || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": (surfacePiece(p)).toFixed(2) })), 'Pièces');
+    feuille(db.pieces.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Pièce": p.nom || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": (surfacePiece(p)).toFixed(2),
+        "Fenêtres": db.fens.filter(f => String(f.pieceId) === String(p.id)).length,
+        "Surface vitrée (m²)": surfaceVitreePiece(p.id).toFixed(2),
+        "Portes": db.portes.filter(x => String(x.pieceId) === String(p.id)).length })), 'Pièces');
     feuille(db.chaufs.map(c => ({ "Lot": getAptNum(c.aptId), "Énergie": c.energie || "", "Générateur": c.gen || "", "Émetteur": c.emetteur || "", "Année": c.annee || "", "Puissance (kW)": c.puissance || "" })), 'Chauffages');
     feuille(db.ecss.map(e => ({ "Lot": getAptNum(e.aptId), "Énergie": e.energie || "", "Type/Générateur": e.type || "", "Année": e.annee || "", "Volume (L)": e.vol || "" })), 'ECS');
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -2991,18 +3045,24 @@ function legendePlan(aid, niv) {
     const dansCible = o => o.aid === aid && (o.nivInt || 0) === niv;
     const lignes = [];
     db.fens.filter(dansCible).forEach(f => {
-        const m = murDe(f);
+        const m = murDe(f), pc = pieceDe(f);
         lignes.push({ rep: f.nom || 'F?', genre: 'Fenêtre', desc: `${f.type || ''} ${f.type === 'Hublot' ? 'Ø' + (f.diam || '?') : (f.l || '?') + '×' + (f.h || '?')} cm`.trim(),
+                      piece: pc ? (pc.nom || 'Pièce') : '—',
                       mur: m ? `${m.ori || ''} ${m.l || ''}×${m.h || ''} m` : '—', repere: !!(f.posPlan || f.posCal) });
     });
     db.portes.filter(dansCible).forEach((p, i) => {
-        const m = murDe(p);
+        const m = murDe(p), pc = pieceDe(p);
         lignes.push({ rep: p.nom || 'P' + (i + 1), genre: 'Porte', desc: `${p.type || ''} ${p.l || '?'}×${p.h || '?'} m`.trim(),
+                      piece: pc ? (pc.nom || 'Pièce') : '—',
                       mur: m ? `${m.ori || ''} ${m.l || ''}×${m.h || ''} m` : '—', repere: !!(p.posPlan || p.posCal) });
     });
     const etat = db.calques[`${aid}_${niv}`];
     const cotes = (etat && etat.mesures ? etat.mesures : []).map(m => ({ nom: m.nom, m: +m.m }));
-    return { lignes, cotes, echelle: etat ? etat.echelle : 0, ref: etat ? etat.ref : null };
+    const pieces = db.pieces.filter(dansCible).map(p => ({
+        nom: p.nom || 'Pièce', surf: surfacePiece(p), vitree: surfaceVitreePiece(p.id),
+        nb: db.fens.filter(f => String(f.pieceId) === String(p.id)).length
+    }));
+    return { lignes, cotes, pieces, echelle: etat ? etat.echelle : 0, ref: etat ? etat.ref : null };
 }
 
 async function exportPdfPlans() {
@@ -3076,17 +3136,36 @@ async function exportPdfPlans() {
             pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); noir();
             pdf.text('Ouvrants', MARGE, yy); yy += 5;
             pdf.setFontSize(8); gris();
-            pdf.text('Repère', MARGE, yy); pdf.text('Type', MARGE + 18, yy); pdf.text('Dimensions', MARGE + 42, yy);
-            pdf.text('Mur associé', MARGE + 100, yy); pdf.text('Repéré', MARGE + 150, yy); yy += 4;
+            pdf.text('Repère', MARGE, yy); pdf.text('Type', MARGE + 16, yy); pdf.text('Dimensions', MARGE + 36, yy);
+            pdf.text('Pièce', MARGE + 84, yy); pdf.text('Mur associé', MARGE + 116, yy); pdf.text('Repéré', MARGE + 162, yy); yy += 4;
             pdf.setDrawColor(226, 232, 240); pdf.line(MARGE, yy - 2, LARGEUR - MARGE, yy - 2);
             pdf.setFont('helvetica', 'normal'); noir();
             leg.lignes.forEach(l => {
                 if (yy > 280) { pdf.addPage(); yy = 20; }
                 pdf.text(String(l.rep), MARGE, yy);
-                pdf.text(l.genre, MARGE + 18, yy);
-                pdf.text(pdf.splitTextToSize(l.desc, 55)[0] || '', MARGE + 42, yy);
-                pdf.text(pdf.splitTextToSize(l.mur, 45)[0] || '', MARGE + 100, yy);
-                pdf.text(l.repere ? 'oui' : '—', MARGE + 150, yy);
+                pdf.text(l.genre, MARGE + 16, yy);
+                pdf.text(pdf.splitTextToSize(l.desc, 46)[0] || '', MARGE + 36, yy);
+                pdf.text(pdf.splitTextToSize(l.piece, 30)[0] || '', MARGE + 84, yy);
+                pdf.text(pdf.splitTextToSize(l.mur, 44)[0] || '', MARGE + 116, yy);
+                pdf.text(l.repere ? 'oui' : '—', MARGE + 162, yy);
+                yy += 5;
+            });
+            yy += 4;
+        }
+        if (leg.pieces.length && !estCalque) {
+            if (yy > 260) { pdf.addPage(); yy = 20; }
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); noir();
+            pdf.text('Pièces relevées', MARGE, yy); yy += 5;
+            pdf.setFontSize(8); gris();
+            pdf.text('Pièce', MARGE, yy); pdf.text('Surface au sol', MARGE + 60, yy); pdf.text('Surface vitrée', MARGE + 110, yy); pdf.text('Fenêtres', MARGE + 162, yy); yy += 4;
+            pdf.setDrawColor(226, 232, 240); pdf.line(MARGE, yy - 2, LARGEUR - MARGE, yy - 2);
+            pdf.setFont('helvetica', 'normal'); noir();
+            leg.pieces.forEach(p => {
+                if (yy > 280) { pdf.addPage(); yy = 20; }
+                pdf.text(pdf.splitTextToSize(p.nom, 55)[0] || '', MARGE, yy);
+                pdf.text(p.surf.toFixed(2) + ' m²', MARGE + 60, yy);
+                pdf.text(p.vitree > 0 ? p.vitree.toFixed(2) + ' m²' : '—', MARGE + 110, yy);
+                pdf.text(String(p.nb), MARGE + 162, yy);
                 yy += 5;
             });
             yy += 4;
