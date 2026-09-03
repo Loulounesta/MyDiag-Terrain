@@ -131,8 +131,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.0';
-const CACHE_VERSION = 'mydiag-v9-0';
+const APP_VERSION = '9.0.1';
+const CACHE_VERSION = 'mydiag-v9-0-1'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -1370,17 +1370,32 @@ async function majStatutHorsLigne() {
 window.addEventListener('online', majStatutHorsLigne); window.addEventListener('offline', majStatutHorsLigne);
 function enregistrerServiceWorker() {
     if (!('serviceWorker' in navigator)) { majStatutHorsLigne(); return; }
-    const avaitControleur = !!navigator.serviceWorker.controller;
-    // Bandeau « Nouvelle version » uniquement quand un NOUVEAU worker s'active alors qu'un ancien pilotait déjà la page.
-    const surveiller = w => { if (!w) return; w.addEventListener('statechange', () => { if (w.state === 'activated' && avaitControleur) { const b = $('maj-banner'); if (b) b.hidden = false; } }); };
+    // Le bandeau « Nouvelle version disponible » ne s'affiche que si le service worker
+    // actif porte une version différente de celle de la page (poignée de main par message).
+    // Une simple ré-activation du même worker (iOS relance, re-enregistrement) ne l'affiche pas,
+    // et il disparaît de lui-même dès que la page et le worker sont à la même version.
+    const versionDuWorker = w => new Promise(res => {
+        if (!w) return res(null);
+        const ch = new MessageChannel(); const t = setTimeout(() => res(null), 1500);
+        ch.port1.onmessage = ev => { clearTimeout(t); res((ev.data && ev.data.cache) || null); };
+        try { w.postMessage({ type: 'VERSION?' }, [ch.port2]); } catch (err) { clearTimeout(t); res(null); }
+    });
+    const verifier = async w => {
+        const v = await versionDuWorker(w); const b = $('maj-banner');
+        if (!b || !v) return; // worker muet (ancienne version) : ne rien affirmer
+        b.hidden = (v === CACHE_VERSION);
+    };
     navigator.serviceWorker.register('sw.js')
         .then(reg => {
             swReady = true; majStatutHorsLigne(); if (!reg) return;
-            surveiller(reg.installing);
+            if (reg.active) verifier(reg.active);
+            const surveiller = w => { if (w) w.addEventListener('statechange', () => { if (w.state === 'activated') verifier(w); }); };
+            surveiller(reg.installing); surveiller(reg.waiting);
             reg.addEventListener('updatefound', () => surveiller(reg.installing));
             if (reg.update) reg.update().catch(() => {});
         })
         .catch(err => { console.error('Service worker indisponible', err); majStatutHorsLigne(); });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (navigator.serviceWorker.controller) verifier(navigator.serviceWorker.controller); });
 }
 
 async function init() {

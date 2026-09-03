@@ -2,7 +2,7 @@
 // L'application s'affiche instantanément depuis le cache (même sur réseau lent en chantier) ;
 // chaque ressource est rafraîchie en tâche de fond, et un nouveau service worker (nouveau
 // nom de cache) déclenche dans la page le bandeau « Nouvelle version disponible ».
-const CACHE = 'mydiag-v9-0';
+const CACHE = 'mydiag-v9-0-1';
 const ASSETS = [
   './',
   './index.html',
@@ -29,6 +29,15 @@ self.addEventListener('activate', e => {
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// La page interroge le worker pour connaître sa version : le bandeau
+// « Nouvelle version disponible » ne s'affiche que si elle diffère de la sienne.
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'VERSION?') {
+    const port = e.ports && e.ports[0];
+    if (port) port.postMessage({ cache: CACHE });
+  }
 });
 
 self.addEventListener('fetch', e => {

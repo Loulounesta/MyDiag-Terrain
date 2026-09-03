@@ -76,6 +76,7 @@ input, select, textarea { font-size: 16px; }
 
 .maj-banner { position: sticky; top: 0; z-index: 21; display: flex; align-items: center; justify-content: center; gap: 12px; background: #FDE68A; color: #78350F; font-size: 13px; font-weight: 700; padding: 8px 16px; }
 .maj-banner .btn-xs { background: #78350F; color: #fff; }
+.maj-close { background: none; border: none; color: #78350F; font-weight: 800; font-size: 15px; cursor: pointer; padding: 4px 8px; }
 
 /* ---------- VUES ---------- */
 .vw { display: none; padding: 20px 16px; max-width: 800px; margin: 0 auto; }
