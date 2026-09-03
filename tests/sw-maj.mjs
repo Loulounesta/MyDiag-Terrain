@@ -18,18 +18,18 @@ try {
   fs.writeFileSync(APP, appOrig + '\nwindow.CVT = CACHE_VERSION;\n');
 
   await page.goto(process.env.MYDIAG_URL || 'http://127.0.0.1:8765/index.html');
-  check(await chargerJusqua('mydiag-v9-3'), 'page exécute bien v9-3');
+  check(await chargerJusqua('mydiag-v9-4'), 'page exécute bien v9-4');
   check(!(await visible()), 'versions synchronisées : bandeau masqué');
   await page.reload(); check(!(await visible()), 'rechargement : toujours masqué');
 
-  fs.writeFileSync(SW, swOrig.replace("'mydiag-v9-3'", "'mydiag-v9-4'"));
+  fs.writeFileSync(SW, swOrig.replace("'mydiag-v9-4'", "'mydiag-v9-5'"));
   await page.reload(); await page.waitForTimeout(2000); await page.reload(); await page.waitForTimeout(2000);
-  check(await visible(), 'worker v9-4 alors que la page est en v9-3 : bandeau affiché');
+  check(await visible(), 'worker v9-5 alors que la page est en v9-4 : bandeau affiché');
   await page.click('.maj-close'); check(!(await page.locator('#maj-banner').isVisible()), 'croix : bandeau fermé');
 
   // Le "Recharger" de l'utilisateur : la page repart sur la version du worker
-  fs.writeFileSync(APP, appOrig.replace("'mydiag-v9-3'", "'mydiag-v9-4'") + '\nwindow.CVT = CACHE_VERSION;\n');
-  check(await chargerJusqua('mydiag-v9-4'), 'page passée en v9-4 après rechargement');
+  fs.writeFileSync(APP, appOrig.replace("'mydiag-v9-4'", "'mydiag-v9-5'") + '\nwindow.CVT = CACHE_VERSION;\n');
+  check(await chargerJusqua('mydiag-v9-5'), 'page passée en v9-5 après rechargement');
   check(!(await visible()), 'après mise à jour : bandeau disparu');
   await page.reload(); check(!(await visible()), 'ouvertures suivantes : jamais de bandeau');
   await page.reload(); check(!(await visible()), 'ré-activations répétées du même worker : jamais de bandeau');

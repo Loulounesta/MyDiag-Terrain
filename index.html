@@ -43,7 +43,7 @@
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.3</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.4</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -304,6 +304,12 @@
     <div id="cal-modes" class="cal-modes" hidden>
         <button class="cal-mode" id="cal-mode-mesurer" onclick="basculerModeCalque('mesurer')">📐 Mesurer une cote</button>
         <button class="cal-mode" id="cal-mode-tracer" onclick="basculerModeCalque('tracer')">✏️ Tracer le contour</button>
+    </div>
+
+    <div id="cal-gabarit-barre" class="cal-barre" hidden>
+        <button class="btn-xs btn-soft" onclick="pivoterGabarit()">↻ Pivoter</button>
+        <button class="btn-xs" style="background:var(--ok); color:#fff;" onclick="validerGabarit()">✔️ Valider l’échelle</button>
+        <button class="btn-xs btn-soft" onclick="annulerGabarit()">✖️ Annuler</button>
     </div>
 
     <div id="cal-barre" class="cal-barre" hidden>
@@ -907,7 +913,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.3</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.4</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

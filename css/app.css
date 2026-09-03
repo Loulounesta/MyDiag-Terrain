@@ -272,6 +272,7 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .cal-echelle .cal-ech-txt b { display: block; font-size: 15px; }
 .cal-echelle .cal-ech-txt small { display: block; font-weight: 600; opacity: 0.85; margin-top: 2px; }
 .cal-echelle button { flex-shrink: 0; background: #fff; border: 1px solid currentColor; color: inherit; border-radius: 10px; padding: 9px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.cal-gabarit-aide { font-size: 12px; font-weight: 700; color: #B45309; background: var(--warn-l); border: 1px solid #FDE68A; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.5; }
 .cal-modes { display: flex; gap: 8px; margin-bottom: 10px; }
 .cal-mode { flex: 1; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--bor); background: var(--sur); color: var(--tx2); font-size: 13px; font-weight: 800; cursor: pointer; }
 .cal-mode.on { background: var(--acc); border-color: var(--acc); color: #fff; }
