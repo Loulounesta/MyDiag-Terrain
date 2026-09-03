@@ -8,6 +8,10 @@ import { execSync } from 'node:child_process';
 const R = process.env.MYDIAG_ROOT || process.cwd(), APP = R + '/js/app.js', SW = R + '/sw.js';
 const appOrig = fs.readFileSync(APP, 'utf8'), swOrig = fs.readFileSync(SW, 'utf8');
 let ok = 0, ko = 0; const check = (c, m) => { c ? ok++ : ko++; console.log(c ? '  ✓' : '  ✗', m); };
+// Les versions sont lues dans les fichiers : le test suit les livraisons sans être réécrit.
+const V1 = (swOrig.match(/const CACHE = '([^']+)'/) || [])[1];
+if (!V1) { console.log('  ✗ version du cache introuvable dans sw.js'); process.exit(1); }
+const V2 = V1 + '-suivante';
 let browser;
 try {
   browser = await chromium.launch();
@@ -18,18 +22,18 @@ try {
   fs.writeFileSync(APP, appOrig + '\nwindow.CVT = CACHE_VERSION;\n');
 
   await page.goto(process.env.MYDIAG_URL || 'http://127.0.0.1:8765/index.html');
-  check(await chargerJusqua('mydiag-v9-8'), 'page exécute bien v9-8');
+  check(await chargerJusqua(V1), `page exécute bien ${V1}`);
   check(!(await visible()), 'versions synchronisées : bandeau masqué');
   await page.reload(); check(!(await visible()), 'rechargement : toujours masqué');
 
-  fs.writeFileSync(SW, swOrig.replace("'mydiag-v9-8'", "'mydiag-v9-9'"));
+  fs.writeFileSync(SW, swOrig.replace(`'${V1}'`, `'${V2}'`));
   await page.reload(); await page.waitForTimeout(2000); await page.reload(); await page.waitForTimeout(2000);
-  check(await visible(), 'worker v9-9 alors que la page est en v9-8 : bandeau affiché');
+  check(await visible(), `worker ${V2} alors que la page est en ${V1} : bandeau affiché`);
   await page.click('.maj-close'); check(!(await page.locator('#maj-banner').isVisible()), 'croix : bandeau fermé');
 
   // Le "Recharger" de l'utilisateur : la page repart sur la version du worker
-  fs.writeFileSync(APP, appOrig.replace("'mydiag-v9-8'", "'mydiag-v9-9'") + '\nwindow.CVT = CACHE_VERSION;\n');
-  check(await chargerJusqua('mydiag-v9-9'), 'page passée en v9-9 après rechargement');
+  fs.writeFileSync(APP, appOrig.replace(`'${V1}'`, `'${V2}'`) + '\nwindow.CVT = CACHE_VERSION;\n');
+  check(await chargerJusqua(V2), `page passée en ${V2} après rechargement`);
   check(!(await visible()), 'après mise à jour : bandeau disparu');
   await page.reload(); check(!(await visible()), 'ouvertures suivantes : jamais de bandeau');
   await page.reload(); check(!(await visible()), 'ré-activations répétées du même worker : jamais de bandeau');

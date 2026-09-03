@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.8';
-const CACHE_VERSION = 'mydiag-v9-8'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.9';
+const CACHE_VERSION = 'mydiag-v9-9'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -1162,7 +1162,7 @@ function renderElementsList(tabId) {
             const murF = murDe(x);
             const pieceF = pieceDe(x);
             dimText = `${esc(x.mat || '')} | ${esc(x.vit || '')}<br>Fermeture : ${esc(x.fer || 'Absence')}<br>` + dimText
-                + (pieceF ? `<br>🏠 ${esc(pieceF.nom || 'Pièce')}` : '') + (murF ? `${pieceF ? ' · ' : '<br>'}🧱 Mur ${esc(murF.ori || '')} ${esc(murF.l || '')}×${esc(murF.h || '')} m` : '');
+                + (murF ? `<br>🧱 Mur ${esc(murF.ori || '')} ${esc(murF.l || '')}×${esc(murF.h || '')} m` : '') + (pieceF ? `${murF ? ' · ' : '<br>'}🏠 ${esc(pieceF.nom || 'Pièce')}` : '');
         } else if (type === 'plfs' || type === 'plas') {
             dimText = x.s ? `Surf: ${esc(x.s)}m²` : `Dim: ${esc(x.l || '?')} x ${esc(x.larg || '?')}m`;
             if (x.iso && x.iso !== 'Non') dimText += ` | Iso: ${esc(x.iso)}${x.isoEp ? ' ' + esc(x.isoEp) + 'cm' : ''}`; titleText = esc(titleText);
@@ -1172,8 +1172,8 @@ function renderElementsList(tabId) {
             titleText = (x.vectX !== undefined) ? 'Mur (Fermeture auto)' : esc(titleText);
         } else if (type === 'portes') {
             dimText = `Dim: ${esc(x.l || '?')} x ${esc(x.h || '?')}m | Iso: ${esc(x.iso || 'Non')} | Sas: ${esc(x.sas || 'Non')}`;
-            const pieceP = pieceDe(x); if (pieceP) dimText += `<br>🏠 ${esc(pieceP.nom || 'Pièce')}`;
-            const murP = murDe(x); if (murP) dimText += `${pieceP ? ' · ' : '<br>'}🧱 Mur ${esc(murP.ori || '')} ${esc(murP.l || '')}×${esc(murP.h || '')} m`;
+            const murP = murDe(x); if (murP) dimText += `<br>🧱 Mur ${esc(murP.ori || '')} ${esc(murP.l || '')}×${esc(murP.h || '')} m`;
+            const pieceP = pieceDe(x); if (pieceP) dimText += `${murP ? ' · ' : '<br>'}🏠 ${esc(pieceP.nom || 'Pièce')}`;
             titleText = `${esc(x.type)} (${esc(x.mat || '?')})`;
         }
         const badgeText = type === 'fens' ? esc(x.ori || 'N/A') : (type === 'portes' ? 'Porte' : esc(x.ori || 'Surf.'));
@@ -1284,7 +1284,7 @@ function renderRecapFens() {
                     <div class="recap-rep">${esc(f.nom || 'F?')}</div>
                     <div class="recap-info">
                         <div class="recap-titre">${esc(f.type || '')} · ${esc(f.ori || '')}${esc(libelleNiveau(f))}</div>
-                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}${pieceDe(f) ? `<br>🏠 ${esc(pieceDe(f).nom || '')}` : ''}${murDe(f) ? `${pieceDe(f) ? ' · ' : '<br>'}🧱 Mur ${esc(murDe(f).ori || '')} ${esc(murDe(f).l || '')}×${esc(murDe(f).h || '')} m` : ''}</div>
+                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}${murDe(f) ? `<br>🧱 Mur ${esc(murDe(f).ori || '')} ${esc(murDe(f).l || '')}×${esc(murDe(f).h || '')} m` : ''}${pieceDe(f) ? `${murDe(f) ? ' · ' : '<br>'}🏠 ${esc(pieceDe(f).nom || '')}` : ''}</div>
                         <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²${f.posPlan || f.posCal ? ' · 📍 repérée sur plan' : ''}</div>
                     </div>
                     <div class="recap-actions">
@@ -1623,6 +1623,7 @@ function dessinerPlanPieces(canvasCible) {
         }
     });
 
+    dessinerMursTraces(ctx, 'pieces', p => ({ x: px(p.x), y: py(p.y) }));
     dessinerGommettes(ctx, 'pieces', p => ({ x: px(p.x), y: py(p.y) }));
 
     const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
@@ -1674,7 +1675,7 @@ function brancherPlanPieces() {
     const fin = () => {
         if (gomDrag) {
             const o = trouverOuvrant(gomDrag.id);
-            if (o && o.posPlan) rattacherAPieceSous(o, o.posPlan);   // la pièce suit le déplacement
+            if (o && o.posPlan) rattacherOuvrant(o, o.posPlan, 'pieces');   // mur et pièce suivent le déplacement
             gomDrag = null; sauvegarderLocal(); rafraichirGommettes('pieces');
             renderElementsList('pieces');
             return;
@@ -1734,7 +1735,8 @@ function surfaceVitreePiece(pieceId) {
 const mursCourants = () => db.murs.filter(m => m.aid === curAppt && (m.nivInt || 0) === curNivInt);
 function libelleMur(m) {
     const surf = ((parseFloat(m.l) || 0) * (parseFloat(m.h) || 0)).toFixed(1);
-    return `${m.ori || 'Sans orientation'} · ${m.l || '?'}×${m.h || '?'} m (${surf} m²) · ${getShortMat(m.mat)}`;
+    // 📐 : mur situé sur un plan, une gommette posée dessus s'y rattache toute seule.
+    return `${m.seg ? '📐 ' : ''}${m.ori || 'Sans orientation'} · ${m.l || '?'}×${m.h || '?'} m (${surf} m²) · ${getShortMat(m.mat)}`;
 }
 function peuplerMursDispo(selectId, valeur) {
     const sel = $(selectId); if (!sel) return;
@@ -1759,6 +1761,38 @@ function verifierPercement(mur, surfaceAjoutee, sauf) {
     const total = surfaceOuvrantsDuMur(mur.id, sauf) + surfaceAjoutee;
     return total > surfMur ? { total, surfMur } : null;
 }
+
+/* --- Repérer le mur sous une gommette ---
+   Une fenêtre perce une façade avant d'appartenir à une pièce : les murs issus
+   d'un contour (plan des pièces ou plan décalqué) portent leur segment, donc la
+   gommette posée le long d'une façade se rattache toute seule au bon mur.
+   Les murs saisis à la main, sans géométrie, restent choisis dans la liste. */
+const mursTraces = repere => mursCourants().filter(m => m.seg && m.repere === repere);
+const SEUIL_MUR = 1.2;   // mètres : au-delà, la gommette n'est plus « sur » ce mur
+function distancePointSegment(pt, s) {
+    const vx = s.bx - s.ax, vy = s.by - s.ay;
+    const long2 = vx * vx + vy * vy;
+    const t = long2 ? Math.max(0, Math.min(1, ((pt.x - s.ax) * vx + (pt.y - s.ay) * vy) / long2)) : 0;
+    return Math.hypot(pt.x - (s.ax + t * vx), pt.y - (s.ay + t * vy));
+}
+function murSousPoint(pt, repere) {
+    let meilleur = null, ecart = SEUIL_MUR;
+    mursTraces(repere).forEach(m => {
+        const d = distancePointSegment(pt, m.seg);
+        if (d < ecart) { ecart = d; meilleur = m; }
+    });
+    return meilleur;
+}
+// Aucun mur sous le doigt : le choix fait à la main dans le formulaire est gardé,
+// on n'efface jamais un rattachement que l'utilisateur a posé lui-même.
+function rattacherAMurSous(o, pt, repere) {
+    const mur = murSousPoint(pt, repere);
+    if (mur) o.murId = mur.id;
+    return mur;
+}
+const surfaceOuvrant = o => genreOuvrant(o) === 'porte'
+    ? (parseFloat(o.l) || 0) * (parseFloat(o.h) || 0)
+    : surfaceFen(o);
 
 /* --- Gommettes : repérer les fenêtres sur un plan ---
    Chaque fenêtre peut porter deux repères, l'un sur le plan assemblé des pièces
@@ -1794,7 +1828,11 @@ function renderPaletteGommettes(support) {
         return;
     }
     const posees = liste.filter(x => x.o[champ]).length;
-    cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · touchez un ouvrant puis le plan${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
+    const traces = mursTraces(support).length;
+    const aide = traces
+        ? `posez la gommette le long d'une façade : le mur (${traces} repéré${traces > 1 ? 's' : ''} 📐) se rattache tout seul`
+        : 'touchez un ouvrant puis le plan';
+    cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · ${aide}${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
         liste.map(({ o, genre }) => {
             const etat = gomArmee === o.id ? 'armee' : (o[champ] ? 'posee' : '');
             return `<button type="button" class="gom-chip ${etat} ${genre === 'porte' ? 'porte' : ''}" data-act="gomChip" data-id="${o.id}" data-support="${support}">
@@ -1829,9 +1867,11 @@ function poserGommette(support, pt) {
     const o = trouverOuvrant(gomArmee); if (!o) return false;
     o[champ] = { x: pt.x, y: pt.y };
     gomSel = o.id; gomArmee = null;
-    const piece = support === 'pieces' ? rattacherAPieceSous(o, pt) : null;
+    const { mur, piece } = rattacherOuvrant(o, pt, support);
     sauvegarderLocal(); rafraichirGommettes(support);
-    toast(`${repereOuvrant(o, genreOuvrant(o))} posé${piece ? ' dans « ' + piece.nom + ' »' : ''} ✓`);
+    const exces = verifierPercement(mur, surfaceOuvrant(o), o.id);
+    if (exces) toast(`⚠️ ${repereOuvrant(o, genreOuvrant(o))} posé${phraseRattachement(mur, piece)}, mais les ouvrants de ce mur totalisent ${exces.total.toFixed(2)} m² pour une façade de ${exces.surfMur.toFixed(2)} m²`, { duree: 6000 });
+    else toast(`${repereOuvrant(o, genreOuvrant(o))} posé${phraseRattachement(mur, piece)} ✓`);
     return true;
 }
 // La pastille est dessinée 24 px au-dessus de son point d'ancrage : c'est elle que
@@ -1839,11 +1879,27 @@ function poserGommette(support, pt) {
 // pixel écran dans le repère du support (mètres ou pixels d'image).
 const DECALAGE_GOM = 24, RAYON_GOM = 20;
 // Sur le plan des pièces, la gommette dit d'elle-même dans quelle pièce elle tombe.
+// Hors de toute pièce (une façade n'est pas toujours bordée d'une pièce relevée),
+// le lien existant est conservé : la pièce est un complément, pas une obligation.
 function rattacherAPieceSous(o, pt) {
     const piece = pieceSous(pt);
-    o.pieceId = piece ? piece.id : '';
+    if (piece) o.pieceId = piece.id;
     return piece;
 }
+// Un point du support ramené en mètres : le plan des pièces y est déjà, le plan
+// décalqué se compte en pixels d'image et passe par l'échelle.
+const pointMetres = (pt, support) => support === 'calque'
+    ? (cal.echelle ? { x: pt.x * cal.echelle, y: pt.y * cal.echelle } : null)
+    : pt;
+// Pose et déplacement partagent le même rattachement : le mur d'abord, la pièce ensuite.
+function rattacherOuvrant(o, pt, support) {
+    const enMetres = pointMetres(pt, support);
+    const mur = enMetres ? rattacherAMurSous(o, enMetres, support) : null;
+    const piece = support === 'pieces' ? rattacherAPieceSous(o, pt) : null;
+    return { mur, piece };
+}
+const phraseRattachement = (mur, piece) =>
+    (mur ? ` sur le mur ${mur.ori || ''} (${mur.l || '?'} m)` : '') + (piece ? ` dans « ${piece.nom || 'Pièce'} »` : '');
 function gommetteSous(support, pt, unite) {
     const champ = CHAMP_GOM[support];
     return ouvrantsCourants().map(x => x.o).filter(o => o[champ]).reverse().find(o => {
@@ -1852,6 +1908,29 @@ function gommetteSous(support, pt, unite) {
         const surPointe = Math.hypot(p.x - pt.x, p.y - pt.y) < 12 * unite;
         return surPastille || surPointe;
     }) || null;
+}
+/* Les murs issus du contour sont signalés sur le plan : une pastille d'orientation
+   au milieu de chaque façade, et la façade entière soulignée quand elle porte la
+   gommette sélectionnée. On voit ainsi où poser une fenêtre pour qu'elle se
+   rattache au bon mur. `versEcranFn` reçoit des mètres du plan. */
+function dessinerMursTraces(ctx, repere, versEcranFn) {
+    const selection = gomSel ? murDe(trouverOuvrant(gomSel)) : null;
+    mursTraces(repere).forEach(m => {
+        const a = versEcranFn({ x: m.seg.ax, y: m.seg.ay }), b = versEcranFn({ x: m.seg.bx, y: m.seg.by });
+        const actif = selection && String(selection.id) === String(m.id);
+        if (actif) {
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+            ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(217,119,6,0.85)'; ctx.stroke();
+        }
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        if (Math.hypot(b.x - a.x, b.y - a.y) < 34) return;   // façade trop courte pour une pastille lisible
+        ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7);
+        ctx.fillStyle = actif ? '#D97706' : '#FFFFFF';
+        ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = actif ? '#B45309' : '#94A3B8'; ctx.stroke();
+        ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = actif ? '#FFFFFF' : '#475569';
+        ctx.fillText(String(m.ori || '?').slice(0, 1), mx, my);
+    });
 }
 // Dessin commun aux deux plans : versEcran convertit du repère du support vers l'écran.
 function dessinerGommettes(ctx, support, versEcranFn) {
@@ -1970,12 +2049,12 @@ async function genererMursDepuisPieces() {
         message: `${contour.length} mur(s) seront créés à partir du contour extérieur des pièces${hauteur ? `, avec une hauteur de ${hauteur} m` : ''}.\n\nLeur matériau et leur isolation restent à compléter.`,
         ok: 'Générer'
     })) return;
-    const crees = creerMursDepuisContour(contour, hauteur);
-    toast(`${crees} mur(s) de façade générés — complétez matériau et isolation ✏️`);
+    const crees = creerMursDepuisContour(contour, hauteur, 'pieces');
+    toast(`${crees} mur(s) de façade générés — posez-y vos fenêtres, complétez matériau et isolation ✏️`);
 }
 // Fabrique un mur par segment du contour, en conservant le vecteur pour que
 // le croquis redessine exactement la forme relevée.
-function creerMursDepuisContour(contour, hauteur) {
+function creerMursDepuisContour(contour, hauteur, repere) {
     let n = 0;
     for (let i = 0; i < contour.length; i++) {
         const a = contour[i], b = contour[(i + 1) % contour.length];
@@ -1983,7 +2062,9 @@ function creerMursDepuisContour(contour, hauteur) {
         const l = Math.hypot(dx, dy);
         if (l < 0.05) continue;
         const ori = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'Nord' : 'Sud') : (dy >= 0 ? 'Est' : 'Ouest');
-        db.murs.push({ id: Date.now() + Math.random(), aid: curAppt, nivInt: curNivInt, ori, donne: 'Extérieur', mat: 'Inconnu', l: l.toFixed(2), h: String(hauteur || ''), ep: '', iso: 'Non', isoEp: '', doub: 'ABSENT', vectX: dx, vectY: dy });
+        // `seg` situe le mur sur le plan dont il est issu : c'est ce qui permet
+        // ensuite de rattacher une fenêtre au mur qu'elle perce, d'un simple appui.
+        db.murs.push({ id: Date.now() + Math.random(), aid: curAppt, nivInt: curNivInt, ori, donne: 'Extérieur', mat: 'Inconnu', l: l.toFixed(2), h: String(hauteur || ''), ep: '', iso: 'Non', isoEp: '', doub: 'ABSENT', vectX: dx, vectY: dy, repere: repere || '', seg: { ax: a.x, ay: a.y, bx: b.x, by: b.y } });
         n++;
     }
     sauvegarderLocal(); updateDashboard();
@@ -2228,7 +2309,11 @@ function calPointerMove(e) {
 function calPointerUp(e) {
     calPointers.delete(e.pointerId);
     if (calPointers.size < 2) calPinch = null;
-    if (gomDrag) { gomDrag = null; sauvegarderLocal(); rafraichirGommettes('calque'); return; }
+    if (gomDrag) {
+        const o = trouverOuvrant(gomDrag.id);
+        if (o && o.posCal) rattacherOuvrant(o, o.posCal, 'calque');   // le mur suit le déplacement
+        gomDrag = null; sauvegarderLocal(); rafraichirGommettes('calque'); return;
+    }
     if (calGab) { calGab = null; sauverEtatCalque(); return; }
     if (!calDrag) return;
     const drag = calDrag; calDrag = null;
@@ -2553,7 +2638,11 @@ function majInterfaceCalque() {
             // Le repérage des fenêtres ne dépend pas de l'échelle : il passe en premier.
             if (cal.mode === 'gommettes') {
                 const champ = CHAMP_GOM.calque; const liste = ouvrantsCourants();
-                res.innerHTML = `📍 <b>Repérage des ouvrants</b> — ${liste.filter(x => x.o[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.</span>`;
+                const traces = mursTraces('calque').length;
+                const conseil = traces
+                    ? `Posez la gommette le long d’une façade : elle se rattache au mur percé (${traces} mur(s) repéré(s) 📐).`
+                    : 'Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.';
+                res.innerHTML = `📍 <b>Repérage des ouvrants</b> — ${liste.filter(x => x.o[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">${conseil}</span>`;
             }
             else if (cal.mode === 'caler' && cal.gabarit) {
                 const d = dimsGabarit(); const ech = echelleGabarit();
@@ -2640,6 +2729,8 @@ function dessinerCalque(canvasCible) {
         if (grand > 46) { ctx.font = 'bold 11px sans-serif'; etiquette(g.nom, 0, 0); }
     }
 
+    // Les murs du calque sont mémorisés en mètres : l'échelle les ramène aux pixels de l'image.
+    if (cal.echelle) dessinerMursTraces(ctx, 'calque', p => versEcran({ x: p.x / cal.echelle, y: p.y / cal.echelle }));
     dessinerGommettes(ctx, 'calque', p => versEcran(p));
 
     // Cotes enregistrées
@@ -2732,7 +2823,7 @@ async function genererMursDepuisCalque() {
     })) return;
     // Passage des pixels de l'image aux mètres du plan, avec le même repère que le croquis.
     const contour = cal.pts.map(p => ({ x: p.x * cal.echelle, y: p.y * cal.echelle }));
-    const crees = creerMursDepuisContour(contour, hauteur);
+    const crees = creerMursDepuisContour(contour, hauteur, 'calque');
     toast(`${crees} mur(s) de façade générés — complétez matériau et isolation ✏️`);
 }
 
@@ -3137,7 +3228,7 @@ async function exportPdfPlans() {
             pdf.text('Ouvrants', MARGE, yy); yy += 5;
             pdf.setFontSize(8); gris();
             pdf.text('Repère', MARGE, yy); pdf.text('Type', MARGE + 16, yy); pdf.text('Dimensions', MARGE + 36, yy);
-            pdf.text('Pièce', MARGE + 84, yy); pdf.text('Mur associé', MARGE + 116, yy); pdf.text('Repéré', MARGE + 162, yy); yy += 4;
+            pdf.text('Mur percé', MARGE + 84, yy); pdf.text('Pièce', MARGE + 132, yy); pdf.text('Repéré', MARGE + 162, yy); yy += 4;
             pdf.setDrawColor(226, 232, 240); pdf.line(MARGE, yy - 2, LARGEUR - MARGE, yy - 2);
             pdf.setFont('helvetica', 'normal'); noir();
             leg.lignes.forEach(l => {
@@ -3145,8 +3236,8 @@ async function exportPdfPlans() {
                 pdf.text(String(l.rep), MARGE, yy);
                 pdf.text(l.genre, MARGE + 16, yy);
                 pdf.text(pdf.splitTextToSize(l.desc, 46)[0] || '', MARGE + 36, yy);
-                pdf.text(pdf.splitTextToSize(l.piece, 30)[0] || '', MARGE + 84, yy);
-                pdf.text(pdf.splitTextToSize(l.mur, 44)[0] || '', MARGE + 116, yy);
+                pdf.text(pdf.splitTextToSize(l.mur, 46)[0] || '', MARGE + 84, yy);
+                pdf.text(pdf.splitTextToSize(l.piece, 28)[0] || '', MARGE + 132, yy);
                 pdf.text(l.repere ? 'oui' : '—', MARGE + 162, yy);
                 yy += 5;
             });
