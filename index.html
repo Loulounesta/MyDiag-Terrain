@@ -43,7 +43,7 @@
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.6</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.7</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -564,6 +564,7 @@
             <div class="fr"><span class="fl">Vitrage</span><select id="f-vit"></select></div>
             <div class="fr"><span class="fl">Lame (mm)</span><input type="number" inputmode="numeric" id="f-ep" placeholder="ex: 16"></div>
             <div class="fr"><span class="fl">Fermeture</span><select id="f-fer"></select></div>
+            <div class="fr"><span class="fl">Mur porteur</span><select id="f-mur"><option value="">—</option></select></div>
         </div>
     </div>
 
@@ -619,6 +620,7 @@
         <div class="fr"><span class="fl">Donne sur</span><select id="po-donne"><option>Extérieur</option><option>Circulations communes</option><option>Local non chauffé</option></select></div>
         <div class="fr"><span class="fl">Isolation</span><select id="po-iso"><option>Non isolée / Inconnue</option><option>Isolée (U ≤ 1.5)</option></select></div>
         <div class="fr"><span class="fl">Sas double</span><select id="po-sas"><option>Non</option><option>Oui (Porte + Sas)</option></select></div>
+        <div class="fr"><span class="fl">Mur porteur</span><select id="po-mur"><option value="">—</option></select></div>
         <div class="dim-block">
             <div class="dim-lbl">Dimensions L x H (m)</div>
             <div class="dim-inputs"><input type="number" inputmode="decimal" step="any" id="po-l" placeholder="L" enterkeyhint="next" data-next="po-h"> <span>X</span> <input type="number" inputmode="decimal" step="any" id="po-h" placeholder="H" enterkeyhint="done" data-submit="portes"></div>
@@ -805,6 +807,9 @@
             <button class="btn-p" onclick="exportExcel()" style="background:var(--ok);">📊 Export Excel</button>
         </div>
         <div class="safe-exp-action">
+            <button class="btn-p" onclick="exportPdfPlans()" style="background:#DC2626;">📄 Dossier de plans (PDF)</button>
+        </div>
+        <div class="safe-exp-action">
             <button class="btn-p" onclick="exportZip()" style="background:var(--warn);">📸 Export photos (ZIP)</button>
         </div>
         <div class="safe-exp-warning">
@@ -918,7 +923,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.6</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.7</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

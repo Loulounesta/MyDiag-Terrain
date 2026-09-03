@@ -267,6 +267,8 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .gom-palette:empty { display: none; }
 .gom-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 20px; border: 1px solid var(--bor); background: #fff; color: var(--tx2); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .gom-chip .gom-rep { background: #E2E8F0; color: var(--tx); font-weight: 900; border-radius: 6px; padding: 2px 7px; font-size: 12px; }
+.gom-chip.porte .gom-rep { background: #EDE9FE; color: #6D28D9; }
+.gom-chip.porte.posee .gom-rep { background: #7C3AED; color: #fff; }
 .gom-chip.posee { border-color: #BBF7D0; background: var(--ok-l); color: #166534; }
 .gom-chip.posee .gom-rep { background: var(--ok); color: #fff; }
 .gom-chip.armee { border-color: var(--acc); background: var(--acc); color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,0.25); }

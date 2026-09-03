@@ -113,7 +113,7 @@ check(await page.locator('#cal-mode-gommettes').isVisible(), 'mode gommettes pro
 await page.click('#cal-mode-gommettes');
 check(await page.evaluate(() => cal.mode) === 'gommettes', 'mode gommettes actif sur le calque');
 check(await page.locator('#cal-gommettes').isVisible(), 'palette du calque affichée');
-check((await page.locator('#cal-resultat').innerText()).includes('Repérage des fenêtres'), 'panneau explicatif');
+check((await page.locator('#cal-resultat').innerText()).includes('Repérage des ouvrants'), 'panneau explicatif');
 check((await page.locator('#cal-gommettes').innerText()).includes('0 / 2 posée'), 'aucune gommette sur ce support au départ');
 await page.click('#cal-gommettes .gom-chip:has-text("F1")');
 const clicCal = async (ix, iy) => {
@@ -149,7 +149,7 @@ await page.click('.nav-zone[data-zone="dossier"]'); await page.click('.nav-vue[d
 await page.selectOption('#pie-target', 'a2');
 await page.waitForTimeout(300);
 await page.click('#plan-btn-gom');
-check((await page.locator('#plan-gommettes').innerText()).includes('Aucune fenêtre saisie'), 'message clair quand le lot n\'a pas de fenêtre');
+check((await page.locator('#plan-gommettes').innerText()).includes('Aucune fenêtre ni porte'), 'message clair quand le lot n\'a aucun ouvrant');
 check(await page.locator('#plan-gommettes .gom-chip').count() === 0, 'aucune pastille proposée');
 
 await page.selectOption('#pie-target', 'a1');

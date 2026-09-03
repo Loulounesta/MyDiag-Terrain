@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.6';
-const CACHE_VERSION = 'mydiag-v9-6'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.7';
+const CACHE_VERSION = 'mydiag-v9-7'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -366,6 +366,8 @@ function goTab(tabId, opts = {}) {
     if (VUES_PAROIS.includes(tabId)) {
         resetEditParoi(); verifierAptActif(tabId); renderElementsList(tabId);
         if (tabId === 'murs') { drawCroquis(); majResumeIso(); }
+        if (tabId === 'fen') peuplerMursDispo('f-mur', '');
+        if (tabId === 'portes') peuplerMursDispo('po-mur', '');
         if (tabId === 'pieces') { renderChipsPieces(); majApercuPiece(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     }
     majBarreAction();
@@ -1024,6 +1026,8 @@ function changeTargetApt(val, tab) {
     resetEditParoi(); curAppt = val; curNivInt = 0;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
+    if (tab === 'fen') peuplerMursDispo('f-mur', '');
+    if (tab === 'portes') peuplerMursDispo('po-mur', '');
     if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
@@ -1031,6 +1035,8 @@ function setNivInt(i, tab) {
     resetEditParoi(); curNivInt = i;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
+    if (tab === 'fen') peuplerMursDispo('f-mur', '');
+    if (tab === 'portes') peuplerMursDispo('po-mur', '');
     if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
@@ -1038,6 +1044,7 @@ Actions.setNiv = d => setNivInt(parseInt(d.i), d.tab);
 
 function sauverParoi(type) {
     if (!curAppt) curAppt = 'copro';
+    let avertissement = '';   // remplace le message d'enregistrement s'il est renseigné
     let el = editParoiId ? db[type].find(x => x.id === editParoiId) : null;
     if (!el) { el = { id: Date.now(), aid: curAppt }; editParoiId = null; }
     el.nivInt = curNivInt;
@@ -1057,9 +1064,15 @@ function sauverParoi(type) {
         if (!existingMod) { existingMod = { id: 'mod_' + Date.now(), nom: `[${fori}] ${dimStr} | ${shortFer} (${fmotifs} motif(s))`, type: ftype, mat: fmat, vit: fvit, ep: fep, fer: ffer, l: fl, h: fh, diam: fdiam, ori: fori, motifs: fmotifs }; db.modelesFens.push(existingMod); renderBibliFens(); }
         if (!editParoiId) el.nom = 'F' + (db.modelesFens.indexOf(existingMod) + 1);
         el.ori = fori; el.type = ftype; el.mat = fmat; el.vit = fvit; el.ep = fep; el.fer = ffer; el.l = fl; el.h = fh; el.diam = fdiam; el.surf = fsurf; el.nb = v('f-nb'); el.motifs = fmotifs;
+        el.murId = v('f-mur') || '';
+        const excesF = verifierPercement(murDe(el), parseFloat(fsurf) * (parseFloat(el.nb) || 1), el.id);
+        if (excesF) avertissement = `Enregistré, mais les ouvrants de ce mur totalisent ${excesF.total.toFixed(2)} m² pour une façade de ${excesF.surfMur.toFixed(2)} m²`;
     } else if (type === 'portes') {
         if (!v('po-l') || !v('po-h')) { toast('⚠️ Largeur et hauteur requises'); $(v('po-l') ? 'po-h' : 'po-l').focus(); return; }
         el.type = v('po-type'); el.mat = v('po-mat'); el.donne = v('po-donne'); el.iso = v('po-iso'); el.sas = v('po-sas'); el.l = v('po-l'); el.h = v('po-h');
+        el.murId = v('po-mur') || '';
+        const excesP = verifierPercement(murDe(el), (parseFloat(el.l) || 0) * (parseFloat(el.h) || 0), el.id);
+        if (excesP) avertissement = `Enregistré, mais les ouvrants de ce mur totalisent ${excesP.total.toFixed(2)} m² pour une façade de ${excesP.surfMur.toFixed(2)} m²`;
     } else if (type === 'plfs') {
         if (!v('p-s') && !(v('p-l') && v('p-larg'))) { toast('⚠️ Dimensions ou surface requises'); $('p-l').focus(); return; }
         el.type = v('p-type'); el.donne = v('p-donne'); el.l = v('p-l'); el.larg = v('p-larg'); el.s = v('p-s'); el.iso = v('p-iso'); el.isoEp = v('p-iso-ep');
@@ -1080,7 +1093,7 @@ function sauverParoi(type) {
     if (curAppt !== 'copro') updateApptBadges(curAppt);
     // Mémoire de saisie : on ne vide que les dimensions, les propriétés restent pour l'élément suivant.
     if (type === 'murs') { $('m-l').value = ''; drawCroquis(); $('m-l').focus(); }
-    else if (type === 'fens') { $('f-l').value = ''; $('f-h').value = ''; $('f-diam').value = ''; }
+    else if (type === 'fens') { $('f-l').value = ''; $('f-h').value = ''; $('f-diam').value = ''; }   // le mur associé reste choisi
     else if (type === 'portes') { $('po-l').value = ''; $('po-h').value = ''; }
     else if (type === 'plfs') { $('p-l').value = ''; $('p-larg').value = ''; $('p-s').value = ''; }
     else if (type === 'plas') { $('s-l').value = ''; $('s-larg').value = ''; $('s-s').value = ''; }
@@ -1089,7 +1102,8 @@ function sauverParoi(type) {
         $('pie-nom').value = ''; $('pie-l').value = ''; $('pie-larg').value = '';
         renderChipsPieces(); majApercuPiece(); dessinerPlanPieces(); $('pie-nom').focus();
     }
-    toast(etaitEdition ? 'Modification enregistrée ✓' : 'Enregistré ✓ Propriétés conservées.');
+    if (avertissement) toast('⚠️ ' + avertissement, { duree: 6000 });
+    else toast(etaitEdition ? 'Modification enregistrée ✓' : 'Enregistré ✓ Propriétés conservées.');
 }
 function editerParoi(type, id) {
     const p = db[type].find(x => String(x.id) === String(id)); if (!p) return;
@@ -1099,8 +1113,10 @@ function editerParoi(type, id) {
         if ((p.iso && p.iso !== 'Non') || (p.doub && p.doub !== 'ABSENT')) ouvrirAcc('acc-iso-murs'); majResumeIso();
     } else if (type === 'fens') {
         set('f-ori', p.ori || 'Nord'); set('f-type', p.type); toggleFenType(); set('f-mat', p.mat); set('f-vit', p.vit); set('f-ep', p.ep || ''); set('f-fer', p.fer); set('f-l', p.l || ''); set('f-h', p.h || ''); set('f-diam', p.diam || ''); set('f-nb', p.nb || '1'); set('f-motifs', p.motifs || '1');
+        peuplerMursDispo('f-mur', p.murId);
     } else if (type === 'portes') {
         set('po-type', p.type || 'Porte opaque pleine'); set('po-mat', p.mat || 'Bois'); set('po-donne', p.donne || 'Extérieur'); set('po-iso', p.iso || 'Non isolée / Inconnue'); set('po-sas', p.sas || 'Non'); set('po-l', p.l || ''); set('po-h', p.h || '');
+        peuplerMursDispo('po-mur', p.murId);
     } else if (type === 'plfs') {
         set('p-type', p.type); set('p-donne', p.donne); set('p-l', p.l || ''); set('p-larg', p.larg || ''); set('p-s', p.s || ''); set('p-iso', p.iso || 'Non'); set('p-iso-ep', p.isoEp || '');
     } else if (type === 'pieces') {
@@ -1143,7 +1159,8 @@ function renderElementsList(tabId) {
         if (type === 'fens') {
             dimText = x.type === 'Hublot' ? `Ø: ${esc(x.diam || '?')}cm (Surf: ${esc(x.surf || '?')}m²) | Lame: ${esc(x.ep || '?')}mm | Qté: ${esc(x.nb || 1)} (Motifs: ${esc(x.motifs || 1)})` : `Dim: ${esc(x.l || '?')}x${esc(x.h || '?')}cm | Lame: ${esc(x.ep || '?')}mm | Qté: ${esc(x.nb || 1)} (Motifs: ${esc(x.motifs || 1)})`;
             titleText = `${x.nom ? esc(x.nom) + ' - ' : ''}${esc(x.type || '')}`;
-            dimText = `${esc(x.mat || '')} | ${esc(x.vit || '')}<br>Fermeture : ${esc(x.fer || 'Absence')}<br>` + dimText;
+            const murF = murDe(x);
+            dimText = `${esc(x.mat || '')} | ${esc(x.vit || '')}<br>Fermeture : ${esc(x.fer || 'Absence')}<br>` + dimText + (murF ? `<br>🧱 Mur ${esc(murF.ori || '')} ${esc(murF.l || '')}×${esc(murF.h || '')} m` : '');
         } else if (type === 'plfs' || type === 'plas') {
             dimText = x.s ? `Surf: ${esc(x.s)}m²` : `Dim: ${esc(x.l || '?')} x ${esc(x.larg || '?')}m`;
             if (x.iso && x.iso !== 'Non') dimText += ` | Iso: ${esc(x.iso)}${x.isoEp ? ' ' + esc(x.isoEp) + 'cm' : ''}`; titleText = esc(titleText);
@@ -1151,7 +1168,11 @@ function renderElementsList(tabId) {
             dimText = `Dim: ${esc(x.l || '?')} x ${esc(x.h || '?')}m`; if (x.ep) dimText += ` | Ep: ${esc(x.ep)}cm`;
             if (x.iso && x.iso !== 'Non') dimText += ` | Iso: ${esc(x.iso)}${x.isoEp ? ' ' + esc(x.isoEp) + 'cm' : ''}`;
             titleText = (x.vectX !== undefined) ? 'Mur (Fermeture auto)' : esc(titleText);
-        } else if (type === 'portes') { dimText = `Dim: ${esc(x.l || '?')} x ${esc(x.h || '?')}m | Iso: ${esc(x.iso || 'Non')} | Sas: ${esc(x.sas || 'Non')}`; titleText = `${esc(x.type)} (${esc(x.mat || '?')})`; }
+        } else if (type === 'portes') {
+            dimText = `Dim: ${esc(x.l || '?')} x ${esc(x.h || '?')}m | Iso: ${esc(x.iso || 'Non')} | Sas: ${esc(x.sas || 'Non')}`;
+            const murP = murDe(x); if (murP) dimText += `<br>🧱 Mur ${esc(murP.ori || '')} ${esc(murP.l || '')}×${esc(murP.h || '')} m`;
+            titleText = `${esc(x.type)} (${esc(x.mat || '?')})`;
+        }
         const badgeText = type === 'fens' ? esc(x.ori || 'N/A') : (type === 'portes' ? 'Porte' : esc(x.ori || 'Surf.'));
         const enEdition = editParoiId === x.id ? 'border-color:#D97706; box-shadow:0 0 0 2px #FDE68A;' : '';
         return `
@@ -1260,7 +1281,7 @@ function renderRecapFens() {
                     <div class="recap-rep">${esc(f.nom || 'F?')}</div>
                     <div class="recap-info">
                         <div class="recap-titre">${esc(f.type || '')} · ${esc(f.ori || '')}${esc(libelleNiveau(f))}</div>
-                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}</div>
+                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}${murDe(f) ? `<br>🧱 Mur ${esc(murDe(f).ori || '')} ${esc(murDe(f).l || '')}×${esc(murDe(f).h || '')} m` : ''}</div>
                         <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²${f.posPlan || f.posCal ? ' · 📍 repérée sur plan' : ''}</div>
                     </div>
                     <div class="recap-actions">
@@ -1535,11 +1556,14 @@ function basculerGommettesPlan() {
     dessinerPlanPieces();
     toast(modePlan === 'gommettes' ? 'Touchez une fenêtre puis le plan pour la repérer' : 'Retour à l’agencement des pièces');
 }
-function dessinerPlanPieces() {
-    const canvas = $('plan-canvas'); const cont = $('plan-container'); if (!canvas || !cont) return;
+// `canvasCible` permet de produire le même dessin hors écran, pour l'export PDF.
+function dessinerPlanPieces(canvasCible) {
+    const horsEcran = !!canvasCible;
+    const canvas = canvasCible || $('plan-canvas'); const cont = $('plan-container');
+    if (!canvas || (!cont && !horsEcran)) return;
     const liste = piecesCourantes();
-    if (!liste.length) { cont.style.display = 'none'; planVue = null; return; }
-    cont.style.display = 'block';
+    if (!liste.length) { if (!horsEcran) { cont.style.display = 'none'; planVue = null; } return; }
+    if (!horsEcran) cont.style.display = 'block';
 
     const ctx = canvas.getContext('2d');
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -1555,7 +1579,7 @@ function dessinerPlanPieces() {
     const pad = 26;
     const ech = Math.min((cw - pad * 2) / Math.max(maxX - minX, 0.5), (ch - pad * 2) / Math.max(maxY - minY, 0.5));
     const dx = (cw - (maxX - minX) * ech) / 2, dy = (ch - (maxY - minY) * ech) / 2;
-    planVue = { ech, dx, dy, minX, minY };
+    if (!horsEcran) planVue = { ech, dx, dy, minX, minY };
     const px = mx => dx + (mx - minX) * ech, py = my => dy + (my - minY) * ech;
 
     // Contour extérieur du logement, tracé sous les pièces
@@ -1594,6 +1618,7 @@ function dessinerPlanPieces() {
 
     const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
     const emprise = (maxX - minX).toFixed(1) + ' × ' + (maxY - minY).toFixed(1) + ' m';
+    if (horsEcran) return;
     const conseil = modePlan === 'gommettes' ? 'touchez une fenêtre dans la liste puis le plan' : 'glissez une pièce pour l’ajuster';
     $('plan-msg').innerHTML = `Surface des pièces : <b>${total.toFixed(2)} m²</b><br><span style="font-size:12px;">Emprise ${emprise} · ${conseil}</span>`;
 }
@@ -1628,8 +1653,8 @@ function brancherPlanPieces() {
     canvas.addEventListener('pointermove', e => {
         const pt = pointPlan(e); if (!pt) return;
         if (gomDrag) {
-            const f = db.fens.find(x => String(x.id) === String(gomDrag.id)); if (!f) return;
-            f.posPlan = { x: pt.x - gomDrag.dx, y: pt.y - gomDrag.dy }; dessinerPlanPieces();
+            const o = trouverOuvrant(gomDrag.id); if (!o) return;
+            o.posPlan = { x: pt.x - gomDrag.dx, y: pt.y - gomDrag.dy }; dessinerPlanPieces();
             return;
         }
         if (!planDrag) return;
@@ -1661,6 +1686,38 @@ function aimanter(valeur, piece, axe) {
     return Math.round((meilleur !== null ? meilleur : valeur) * 20) / 20;
 }
 
+/* --- Rattachement d'un ouvrant à son mur ---
+   Une fenêtre ou une porte perce un mur : le lien permet de vérifier que les
+   surfaces vitrées tiennent dans la façade, et de le rappeler à l'export. */
+const mursCourants = () => db.murs.filter(m => m.aid === curAppt && (m.nivInt || 0) === curNivInt);
+function libelleMur(m) {
+    const surf = ((parseFloat(m.l) || 0) * (parseFloat(m.h) || 0)).toFixed(1);
+    return `${m.ori || 'Sans orientation'} · ${m.l || '?'}×${m.h || '?'} m (${surf} m²) · ${getShortMat(m.mat)}`;
+}
+function peuplerMursDispo(selectId, valeur) {
+    const sel = $(selectId); if (!sel) return;
+    const liste = mursCourants();
+    sel.innerHTML = '<option value="">— Aucun mur associé —</option>' +
+        liste.map(m => `<option value="${m.id}">${esc(libelleMur(m))}</option>`).join('');
+    setSelect(selectId, valeur || '');
+    if (!liste.length) sel.innerHTML = '<option value="">Aucun mur saisi pour ce lot et ce niveau</option>';
+}
+const murDe = o => o && o.murId ? db.murs.find(m => String(m.id) === String(o.murId)) : null;
+// Surface des ouvrants rattachés à un mur, pour signaler un percement impossible.
+function surfaceOuvrantsDuMur(murId, sauf) {
+    let s = 0;
+    db.fens.forEach(f => { if (String(f.murId) === String(murId) && f.id !== sauf) s += surfaceFen(f); });
+    db.portes.forEach(p => { if (String(p.murId) === String(murId) && p.id !== sauf) s += (parseFloat(p.l) || 0) * (parseFloat(p.h) || 0); });
+    return s;
+}
+function verifierPercement(mur, surfaceAjoutee, sauf) {
+    if (!mur) return null;
+    const surfMur = (parseFloat(mur.l) || 0) * (parseFloat(mur.h) || 0);
+    if (surfMur <= 0) return null;
+    const total = surfaceOuvrantsDuMur(mur.id, sauf) + surfaceAjoutee;
+    return total > surfMur ? { total, surfMur } : null;
+}
+
 /* --- Gommettes : repérer les fenêtres sur un plan ---
    Chaque fenêtre peut porter deux repères, l'un sur le plan assemblé des pièces
    (en mètres), l'autre sur le plan décalqué (en pixels de l'image). Ils sont
@@ -1671,42 +1728,53 @@ let gomDrag = null;
 const CHAMP_GOM = { pieces: 'posPlan', calque: 'posCal' };
 
 const fensCourantes = () => db.fens.filter(f => f.aid === curAppt && (f.nivInt || 0) === curNivInt);
-const libelleFen = f => {
-    const dim = f.type === 'Hublot' ? `Ø${f.diam || '?'}` : `${f.l || '?'}×${f.h || '?'}`;
-    return `${dim} cm${f.ori ? ' · ' + f.ori : ''}`;
+const portesCourantes = () => db.portes.filter(p => p.aid === curAppt && (p.nivInt || 0) === curNivInt);
+// Fenêtres et portes se repèrent de la même façon ; seul le libellé et la couleur diffèrent.
+const ouvrantsCourants = () => [
+    ...fensCourantes().map(f => ({ o: f, genre: 'fen' })),
+    ...portesCourantes().map(p => ({ o: p, genre: 'porte' }))
+];
+const libelleOuvrant = (o, genre) => {
+    if (genre === 'porte') return `${o.l || '?'}×${o.h || '?'} m${o.donne ? ' · ' + o.donne : ''}`;
+    const dim = o.type === 'Hublot' ? `Ø${o.diam || '?'}` : `${o.l || '?'}×${o.h || '?'}`;
+    return `${dim} cm${o.ori ? ' · ' + o.ori : ''}`;
 };
+const repereOuvrant = (o, genre) => o.nom || (genre === 'porte' ? 'P' + (db.portes.indexOf(o) + 1) : 'F?');
+const trouverOuvrant = id => db.fens.find(f => String(f.id) === String(id)) || db.portes.find(p => String(p.id) === String(id)) || null;
+const genreOuvrant = o => db.portes.includes(o) ? 'porte' : 'fen';
 
 function renderPaletteGommettes(support) {
     const cont = $(support === 'pieces' ? 'plan-gommettes' : 'cal-gommettes'); if (!cont) return;
     const champ = CHAMP_GOM[support];
-    const liste = fensCourantes();
+    const liste = ouvrantsCourants();
     if (!liste.length) {
-        cont.innerHTML = `<div class="gom-aide">Aucune fenêtre saisie pour ce lot et ce niveau. Ajoutez-les dans Parois › Fenêtres, elles apparaîtront ici.</div>`;
+        cont.innerHTML = `<div class="gom-aide">Aucune fenêtre ni porte saisie pour ce lot et ce niveau. Ajoutez-les dans Parois, elles apparaîtront ici.</div>`;
         return;
     }
-    const posees = liste.filter(f => f[champ]).length;
-    cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · touchez une fenêtre puis le plan${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
-        liste.map(f => {
-            const etat = gomArmee === f.id ? 'armee' : (f[champ] ? 'posee' : '');
-            return `<button type="button" class="gom-chip ${etat}" data-act="gomChip" data-id="${f.id}" data-support="${support}">
-                <span class="gom-rep">${esc(f.nom || 'F?')}</span>${esc(libelleFen(f))}${f[champ] ? ' ✓' : ''}</button>`;
+    const posees = liste.filter(x => x.o[champ]).length;
+    cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · touchez un ouvrant puis le plan${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
+        liste.map(({ o, genre }) => {
+            const etat = gomArmee === o.id ? 'armee' : (o[champ] ? 'posee' : '');
+            return `<button type="button" class="gom-chip ${etat} ${genre === 'porte' ? 'porte' : ''}" data-act="gomChip" data-id="${o.id}" data-support="${support}">
+                <span class="gom-rep">${esc(repereOuvrant(o, genre))}</span>${genre === 'porte' ? '🚪 ' : '🪟 '}${esc(libelleOuvrant(o, genre))}${o[champ] ? ' ✓' : ''}</button>`;
         }).join('') +
         (gomSel ? `<button type="button" class="gom-chip" style="border-color:#FECACA; background:var(--dan-l); color:var(--dan);" data-act="gomRetirer" data-support="${support}">❌ Retirer la gommette</button>` : '');
 }
 Actions.gomChip = d => {
     const support = d.support; const champ = CHAMP_GOM[support];
-    const f = db.fens.find(x => String(x.id) === String(d.id)); if (!f) return;
-    if (gomArmee === f.id) { gomArmee = null; }
-    else if (f[champ]) { gomSel = f.id; gomArmee = null; toast(`${f.nom || 'Fenêtre'} sélectionnée — glissez-la sur le plan`); }
-    else { gomArmee = f.id; gomSel = null; toast(`Touchez le plan pour poser ${f.nom || 'la fenêtre'}`); }
+    const o = trouverOuvrant(d.id); if (!o) return;
+    const rep = repereOuvrant(o, genreOuvrant(o));
+    if (gomArmee === o.id) { gomArmee = null; }
+    else if (o[champ]) { gomSel = o.id; gomArmee = null; toast(`${rep} sélectionné — glissez-le sur le plan`); }
+    else { gomArmee = o.id; gomSel = null; toast(`Touchez le plan pour poser ${rep}`); }
     rafraichirGommettes(support);
 };
 Actions.gomRetirer = d => {
     const support = d.support; const champ = CHAMP_GOM[support];
-    const f = db.fens.find(x => String(x.id) === String(gomSel)); if (!f) return;
-    const ancienne = f[champ]; delete f[champ]; gomSel = null;
+    const o = trouverOuvrant(gomSel); if (!o) return;
+    const ancienne = o[champ]; delete o[champ]; gomSel = null;
     sauvegarderLocal(); rafraichirGommettes(support);
-    toastAnnuler(`Gommette ${f.nom || ''} retirée`, () => { f[champ] = ancienne; sauvegarderLocal(); rafraichirGommettes(support); });
+    toastAnnuler(`Gommette ${repereOuvrant(o, genreOuvrant(o))} retirée`, () => { o[champ] = ancienne; sauvegarderLocal(); rafraichirGommettes(support); });
 };
 function rafraichirGommettes(support) {
     renderPaletteGommettes(support);
@@ -1716,11 +1784,11 @@ function rafraichirGommettes(support) {
 function poserGommette(support, pt) {
     const champ = CHAMP_GOM[support];
     if (!gomArmee) return false;
-    const f = db.fens.find(x => String(x.id) === String(gomArmee)); if (!f) return false;
-    f[champ] = { x: pt.x, y: pt.y };
-    gomSel = f.id; gomArmee = null;
+    const o = trouverOuvrant(gomArmee); if (!o) return false;
+    o[champ] = { x: pt.x, y: pt.y };
+    gomSel = o.id; gomArmee = null;
     sauvegarderLocal(); rafraichirGommettes(support);
-    toast(`${f.nom || 'Fenêtre'} posée sur le plan ✓`);
+    toast(`${repereOuvrant(o, genreOuvrant(o))} posé sur le plan ✓`);
     return true;
 }
 // La pastille est dessinée 24 px au-dessus de son point d'ancrage : c'est elle que
@@ -1729,8 +1797,8 @@ function poserGommette(support, pt) {
 const DECALAGE_GOM = 24, RAYON_GOM = 20;
 function gommetteSous(support, pt, unite) {
     const champ = CHAMP_GOM[support];
-    return fensCourantes().filter(f => f[champ]).reverse().find(f => {
-        const p = f[champ];
+    return ouvrantsCourants().map(x => x.o).filter(o => o[champ]).reverse().find(o => {
+        const p = o[champ];
         const surPastille = Math.hypot(p.x - pt.x, p.y - DECALAGE_GOM * unite - pt.y) < RAYON_GOM * unite;
         const surPointe = Math.hypot(p.x - pt.x, p.y - pt.y) < 12 * unite;
         return surPastille || surPointe;
@@ -1739,17 +1807,19 @@ function gommetteSous(support, pt, unite) {
 // Dessin commun aux deux plans : versEcran convertit du repère du support vers l'écran.
 function dessinerGommettes(ctx, support, versEcranFn) {
     const champ = CHAMP_GOM[support];
-    fensCourantes().forEach(f => {
-        const p = f[champ]; if (!p) return;
+    ouvrantsCourants().forEach(({ o, genre }) => {
+        const p = o[champ]; if (!p) return;
         const e = versEcranFn(p);
-        const actif = gomSel === f.id;
+        const actif = gomSel === o.id;
+        // Bleu pour les fenêtres, violet pour les portes ; orange quand sélectionné.
+        const couleur = actif ? '#D97706' : (genre === 'porte' ? '#7C3AED' : '#2563EB');
         ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x - 5, e.y - 13); ctx.lineTo(e.x + 5, e.y - 13); ctx.closePath();
-        ctx.fillStyle = actif ? '#D97706' : '#2563EB'; ctx.fill();
+        ctx.fillStyle = couleur; ctx.fill();
         ctx.beginPath(); ctx.arc(e.x, e.y - 24, 14, 0, 7);
-        ctx.fillStyle = actif ? '#D97706' : '#2563EB'; ctx.fill();
+        ctx.fillStyle = couleur; ctx.fill();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
         ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#fff'; ctx.fillText(String(f.nom || 'F?').slice(0, 4), e.x, e.y - 24);
+        ctx.fillStyle = '#fff'; ctx.fillText(String(repereOuvrant(o, genre)).slice(0, 4), e.x, e.y - 24);
     });
 }
 
@@ -2074,8 +2144,8 @@ function calPointerMove(e) {
         return;
     }
     if (gomDrag) {
-        const f = db.fens.find(x => String(x.id) === String(gomDrag.id));
-        if (f) { const p = versImage(pos.x, pos.y); f.posCal = { x: p.x - gomDrag.dx, y: p.y - gomDrag.dy }; dessinerCalque(); }
+        const o = trouverOuvrant(gomDrag.id);
+        if (o) { const p = versImage(pos.x, pos.y); o.posCal = { x: p.x - gomDrag.dx, y: p.y - gomDrag.dy }; dessinerCalque(); }
         return;
     }
     if (calGab && cal.gabarit) {
@@ -2433,8 +2503,8 @@ function majInterfaceCalque() {
         if (aPlan) {
             // Le repérage des fenêtres ne dépend pas de l'échelle : il passe en premier.
             if (cal.mode === 'gommettes') {
-                const champ = CHAMP_GOM.calque; const liste = fensCourantes();
-                res.innerHTML = `📍 <b>Repérage des fenêtres</b> — ${liste.filter(f => f[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.</span>`;
+                const champ = CHAMP_GOM.calque; const liste = ouvrantsCourants();
+                res.innerHTML = `📍 <b>Repérage des ouvrants</b> — ${liste.filter(x => x.o[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.</span>`;
             }
             else if (cal.mode === 'caler' && cal.gabarit) {
                 const d = dimsGabarit(); const ech = echelleGabarit();
@@ -2462,11 +2532,12 @@ function majInterfaceCalque() {
     if (bmu) bmu.hidden = !contourPret;
 }
 
-function dessinerCalque() {
-    const canvas = $('calque-canvas'); if (!canvas) return;
+function dessinerCalque(canvasCible) {
+    const canvas = canvasCible || $('calque-canvas'); if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const { w, h } = tailleCalque();
+    const dpr = canvasCible ? 1 : Math.min(window.devicePixelRatio || 1, 3);
+    const r0 = canvas.getBoundingClientRect();
+    const { w, h } = canvasCible ? { w: r0.width || canvas.width, h: r0.height || canvas.height } : tailleCalque();
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -2849,8 +2920,11 @@ async function exportExcel() {
     feuille(db.appts.map(a => ({ "Lot": a.num, "Bâtiment": a.bat || "", "Type": a.type === 2 ? "Duplex" : a.type === 3 ? "Triplex" : "Plain-pied", "Étage": a.etage || "", "Niveau ADN": a.niveau || "", "Surface (m²)": a.surf || "", "HSP (m)": a.hsp || "" })), 'Appartements');
     feuille(db.murs.map(m => ({ "Lot": getAptNum(m.aid), "Niveau (Duplex)": m.nivInt || 0, "Orientation": m.ori || "Auto", "Donne sur": m.donne || "", "Matériau": m.mat || "", "Longueur (m)": m.l || "", "Hauteur (m)": m.h || "", "Épaisseur (cm)": m.ep || "", "Doublage": m.doub || "ABSENT", "Isolant": m.iso || "", "Ép. Isolant (cm)": m.isoEp || "" })), 'Murs');
     feuille(db.fens.map(f => ({ "Lot": getAptNum(f.aid), "Niveau": f.nivInt || 0, "Code ANALYSIMMO": genererCodeFen(f), "Repère": f.nom || "", "Orientation": f.ori || "", "Type": f.type || "", "Matériau": f.mat || "", "Vitrage": f.vit || "", "Ép. Lame (mm)": f.ep || "", "Fermeture": f.fer || "", "Largeur (cm)": f.l || "", "Hauteur (cm)": f.h || "", "Diamètre (cm)": f.diam || "", "Surface Unitaire (m²)": f.surf || "", "Quantité": f.nb || 1, "Motifs": f.motifs || 1,
+        "Mur associé": murDe(f) ? libelleMur(murDe(f)) : "",
         "Repérée sur plan": [f.posPlan ? 'plan des pièces' : '', f.posCal ? 'plan décalqué' : ''].filter(Boolean).join(' + ') || "" })), 'Fenêtres');
-    feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "" })), 'Portes');
+    feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "",
+        "Mur associé": murDe(p) ? libelleMur(murDe(p)) : "",
+        "Repérée sur plan": [p.posPlan ? 'plan des pièces' : '', p.posCal ? 'plan décalqué' : ''].filter(Boolean).join(' + ') || "" })), 'Portes');
     feuille(db.plfs.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Plafonds');
     feuille(db.plas.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Planchers');
     const cotes = [];
@@ -2866,6 +2940,182 @@ async function exportExcel() {
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     if (await Plateforme.enregistrerFichier(blob, `Export_MyDiag_${db.copro.ref || 'Projet'}_${horodatage()}.xlsx`)) toast('Fichier Excel enregistré ✓');
 }
+/* --- Export PDF du dossier de plans ---
+   Les plans sont redessinés au moment de l'export, à partir des données du jour :
+   le PDF reflète donc toujours les cotes et les gommettes en cours, et non une
+   ancienne capture enregistrée dans les documents. */
+function canvasHorsEcran(largeur, hauteur) {
+    const c = document.createElement('canvas');
+    c.width = largeur; c.height = hauteur;
+    // Rattaché hors champ : les fonctions de dessin lisent la taille CSS réelle.
+    c.style.cssText = `position:absolute; left:-99999px; top:0; width:${largeur}px; height:${hauteur}px;`;
+    document.body.appendChild(c);
+    return c;
+}
+// Exécute une fonction dans le contexte d'un autre lot ou niveau, puis remet tout en place.
+async function avecContexte(aid, niv, fn) {
+    const sAppt = curAppt, sNiv = curNivInt, sCal = cal, sGom = gomSel, sPiece = pieceSel, sMode = modePlan;
+    curAppt = aid; curNivInt = niv; gomSel = null; pieceSel = null; modePlan = 'pieces';
+    try { return await fn(); }
+    finally { curAppt = sAppt; curNivInt = sNiv; cal = sCal; gomSel = sGom; pieceSel = sPiece; modePlan = sMode; }
+}
+async function imagePlanPieces(aid, niv, L, H) {
+    return avecContexte(aid, niv, () => {
+        if (!piecesCourantes().length) return null;
+        const c = canvasHorsEcran(L, H);
+        try { dessinerPlanPieces(c); return c.toDataURL('image/png'); }
+        finally { c.remove(); }
+    });
+}
+async function imageCalque(aid, niv, L, H) {
+    const etat = db.calques[`${aid}_${niv}`];
+    if (!etat || !etat.media) return null;
+    const src = Medias.src(etat.media); if (!src) return null;
+    let img;
+    try { img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+    catch (e) { return null; }
+    return avecContexte(aid, niv, () => {
+        const zoom = Math.min(L / img.width, H / img.height);
+        cal = { media: etat.media, img, echelle: etat.echelle || 0, pts: (etat.pts || []).map(p => ({ ...p })),
+                mesures: (etat.mesures || []).map(m => ({ ...m })), calib: [], ref: etat.ref || null,
+                gabarit: etat.gabarit ? migrerGabarit({ ...etat.gabarit }) : null,
+                mode: 'apercu', zoom, ox: (L - img.width * zoom) / 2, oy: (H - img.height * zoom) / 2,
+                pdfDoc: null, page: 1, nbPages: 1 };
+        const c = canvasHorsEcran(L, H);
+        try { dessinerCalque(c); return c.toDataURL('image/png'); }
+        finally { c.remove(); }
+    });
+}
+// Ouvrants repérés et cotes d'un lot et d'un niveau, pour la légende de la page.
+function legendePlan(aid, niv) {
+    const dansCible = o => o.aid === aid && (o.nivInt || 0) === niv;
+    const lignes = [];
+    db.fens.filter(dansCible).forEach(f => {
+        const m = murDe(f);
+        lignes.push({ rep: f.nom || 'F?', genre: 'Fenêtre', desc: `${f.type || ''} ${f.type === 'Hublot' ? 'Ø' + (f.diam || '?') : (f.l || '?') + '×' + (f.h || '?')} cm`.trim(),
+                      mur: m ? `${m.ori || ''} ${m.l || ''}×${m.h || ''} m` : '—', repere: !!(f.posPlan || f.posCal) });
+    });
+    db.portes.filter(dansCible).forEach((p, i) => {
+        const m = murDe(p);
+        lignes.push({ rep: p.nom || 'P' + (i + 1), genre: 'Porte', desc: `${p.type || ''} ${p.l || '?'}×${p.h || '?'} m`.trim(),
+                      mur: m ? `${m.ori || ''} ${m.l || ''}×${m.h || ''} m` : '—', repere: !!(p.posPlan || p.posCal) });
+    });
+    const etat = db.calques[`${aid}_${niv}`];
+    const cotes = (etat && etat.mesures ? etat.mesures : []).map(m => ({ nom: m.nom, m: +m.m }));
+    return { lignes, cotes, echelle: etat ? etat.echelle : 0, ref: etat ? etat.ref : null };
+}
+
+async function exportPdfPlans() {
+    if (!await assurerLib('jspdf', 'lib/jspdf.umd.min.js')) return;
+    const { jsPDF } = window.jspdf;
+    toast('Génération du dossier de plans…', { duree: 2500 });
+
+    const supports = [];
+    const ajouterSupports = (aid, libelle, niveaux) => {
+        for (let n = 0; n < niveaux; n++) {
+            const nivLbl = niveaux > 1 ? ` · ${n === 0 ? 'niveau bas' : (n === 1 && niveaux === 3) ? 'niveau intermédiaire' : 'niveau haut'}` : '';
+            if (db.pieces.some(p => p.aid === aid && (p.nivInt || 0) === n)) supports.push({ aid, niv: n, titre: `${libelle}${nivLbl}`, type: 'Plan des pièces relevées' });
+            if (db.calques[`${aid}_${n}`]) supports.push({ aid, niv: n, titre: `${libelle}${nivLbl}`, type: 'Plan décalqué' });
+        }
+    };
+    ajouterSupports('copro', 'Parties communes', 1);
+    db.appts.forEach(a => ajouterSupports(a.id, `Lot ${a.num}`, a.type > 1 ? a.type : 1));
+
+    if (!supports.length) { toast('Aucun plan à exporter : saisissez des pièces ou chargez un plan'); return; }
+
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const LARGEUR = 210, MARGE = 14, UTILE = LARGEUR - MARGE * 2;
+    const gris = () => pdf.setTextColor(100, 116, 139);
+    const noir = () => pdf.setTextColor(15, 23, 42);
+
+    // Couverture
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(22); noir();
+    pdf.text('Dossier de plans', MARGE, 40);
+    pdf.setFontSize(13); gris();
+    pdf.text(db.copro.nom || 'Copropriété non nommée', MARGE, 50);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11);
+    const adresse = [db.copro.adresse, [db.copro.cp, db.copro.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    let y = 60;
+    const ligneInfo = (etiquette, valeur) => { if (!valeur) return; gris(); pdf.text(etiquette, MARGE, y); noir(); pdf.text(String(valeur), MARGE + 45, y); y += 7; };
+    ligneInfo('Référence', db.copro.ref);
+    ligneInfo('Adresse', adresse);
+    ligneInfo('Année de construction', db.copro.annee);
+    ligneInfo('Lots relevés', db.appts.length);
+    ligneInfo('Surface relevée', db.appts.reduce((s, a) => s + (parseFloat(a.surf) || 0), 0).toFixed(1) + ' m²');
+    ligneInfo('Plans du dossier', supports.length);
+    ligneInfo('Édité le', new Date().toLocaleDateString('fr-FR'));
+    gris(); pdf.setFontSize(9);
+    pdf.text('Plans redessinés à la date d’édition : cotes et gommettes reflètent le relevé en cours.', MARGE, 285);
+
+    for (const sup of supports) {
+        pdf.addPage();
+        const estCalque = sup.type === 'Plan décalqué';
+        // 1240 px de large : net à l'impression sans alourdir le fichier
+        const img = estCalque ? await imageCalque(sup.aid, sup.niv, 1240, 900) : await imagePlanPieces(sup.aid, sup.niv, 1240, 900);
+
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); noir();
+        pdf.text(sup.titre, MARGE, 20);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); gris();
+        pdf.text(sup.type, MARGE, 26);
+
+        let yy = 32;
+        if (img) {
+            const hImg = UTILE * 900 / 1240;
+            pdf.addImage(img, 'PNG', MARGE, yy, UTILE, hImg);
+            pdf.setDrawColor(203, 213, 225); pdf.rect(MARGE, yy, UTILE, hImg);
+            yy += hImg + 8;
+        } else { gris(); pdf.text('Plan indisponible.', MARGE, yy); yy += 8; }
+
+        const leg = legendePlan(sup.aid, sup.niv);
+        if (leg.echelle) {
+            gris(); pdf.setFontSize(9);
+            const orig = leg.ref ? (leg.ref.piece ? `calée sur ${leg.ref.libelle}` : `d’après ${leg.ref.metres} m relevés${leg.ref.libelle ? ' sur ' + leg.ref.libelle : ''}`) : 'calibrage enregistré';
+            pdf.text(`Échelle : ${orig}`, MARGE, yy); yy += 6;
+        }
+        if (leg.lignes.length) {
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); noir();
+            pdf.text('Ouvrants', MARGE, yy); yy += 5;
+            pdf.setFontSize(8); gris();
+            pdf.text('Repère', MARGE, yy); pdf.text('Type', MARGE + 18, yy); pdf.text('Dimensions', MARGE + 42, yy);
+            pdf.text('Mur associé', MARGE + 100, yy); pdf.text('Repéré', MARGE + 150, yy); yy += 4;
+            pdf.setDrawColor(226, 232, 240); pdf.line(MARGE, yy - 2, LARGEUR - MARGE, yy - 2);
+            pdf.setFont('helvetica', 'normal'); noir();
+            leg.lignes.forEach(l => {
+                if (yy > 280) { pdf.addPage(); yy = 20; }
+                pdf.text(String(l.rep), MARGE, yy);
+                pdf.text(l.genre, MARGE + 18, yy);
+                pdf.text(pdf.splitTextToSize(l.desc, 55)[0] || '', MARGE + 42, yy);
+                pdf.text(pdf.splitTextToSize(l.mur, 45)[0] || '', MARGE + 100, yy);
+                pdf.text(l.repere ? 'oui' : '—', MARGE + 150, yy);
+                yy += 5;
+            });
+            yy += 4;
+        }
+        if (leg.cotes.length) {
+            if (yy > 265) { pdf.addPage(); yy = 20; }
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); noir();
+            pdf.text('Cotes relevées', MARGE, yy); yy += 5;
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+            leg.cotes.forEach(c => {
+                if (yy > 280) { pdf.addPage(); yy = 20; }
+                noir(); pdf.text(String(c.nom), MARGE, yy);
+                pdf.text(c.m.toFixed(2) + ' m', MARGE + 100, yy);
+                yy += 5;
+            });
+        }
+    }
+
+    // Pagination
+    const total = pdf.getNumberOfPages();
+    for (let i = 1; i <= total; i++) {
+        pdf.setPage(i); pdf.setFontSize(8); gris();
+        pdf.text(`${db.copro.ref || 'MyDiag'} — page ${i} / ${total}`, LARGEUR - MARGE, 290, { align: 'right' });
+    }
+
+    const blob = pdf.output('blob');
+    if (await Plateforme.enregistrerFichier(blob, `Plans_MyDiag_${db.copro.ref || 'Projet'}_${horodatage()}.pdf`)) toast('Dossier de plans PDF enregistré ✓');
+}
+
 async function exportZip() {
     if (!await assurerLib('JSZip', 'lib/jszip.min.js')) return;
     toast('Préparation du ZIP en cours...'); const zip = new JSZip(); let hasPhotos = false;
