@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.5';
-const CACHE_VERSION = 'mydiag-v9-5'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.6';
+const CACHE_VERSION = 'mydiag-v9-6'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -366,7 +366,7 @@ function goTab(tabId, opts = {}) {
     if (VUES_PAROIS.includes(tabId)) {
         resetEditParoi(); verifierAptActif(tabId); renderElementsList(tabId);
         if (tabId === 'murs') { drawCroquis(); majResumeIso(); }
-        if (tabId === 'pieces') { renderChipsPieces(); majApercuPiece(); assemblerPieces(false); dessinerPlanPieces(); }
+        if (tabId === 'pieces') { renderChipsPieces(); majApercuPiece(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     }
     majBarreAction();
 }
@@ -1024,14 +1024,14 @@ function changeTargetApt(val, tab) {
     resetEditParoi(); curAppt = val; curNivInt = 0;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
-    if (tab === 'pieces') { pieceSel = null; renderChipsPieces(); assemblerPieces(false); dessinerPlanPieces(); }
+    if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
 function setNivInt(i, tab) {
     resetEditParoi(); curNivInt = i;
     verifierAptActif(tab); renderElementsList(tab);
     if (tab === 'murs') drawCroquis();
-    if (tab === 'pieces') { pieceSel = null; renderChipsPieces(); assemblerPieces(false); dessinerPlanPieces(); }
+    if (tab === 'pieces') { pieceSel = null; gomArmee = null; gomSel = null; renderChipsPieces(); assemblerPieces(false); if (modePlan === 'gommettes') renderPaletteGommettes('pieces'); dessinerPlanPieces(); }
     majBarreAction();
 }
 Actions.setNiv = d => setNivInt(parseInt(d.i), d.tab);
@@ -1261,7 +1261,7 @@ function renderRecapFens() {
                     <div class="recap-info">
                         <div class="recap-titre">${esc(f.type || '')} · ${esc(f.ori || '')}${esc(libelleNiveau(f))}</div>
                         <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}</div>
-                        <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²</div>
+                        <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²${f.posPlan || f.posCal ? ' · 📍 repérée sur plan' : ''}</div>
                     </div>
                     <div class="recap-actions">
                         <button class="ico-btn ok" title="Quantité +1" data-act="recapPlus" data-id="${f.id}">➕</button>
@@ -1525,6 +1525,16 @@ function pivoterPieceSel() {
 
 /* --- Dessin du plan assemblé --- */
 let planVue = null;   // repère courant (échelle et décalage) pour la conversion écran ↔ mètres
+let modePlan = 'pieces';   // 'pieces' : agencer les pièces · 'gommettes' : repérer les fenêtres
+function basculerGommettesPlan() {
+    modePlan = modePlan === 'gommettes' ? 'pieces' : 'gommettes';
+    gomArmee = null; gomSel = null;
+    const b = $('plan-btn-gom'); if (b) b.classList.toggle('on', modePlan === 'gommettes');
+    const pal = $('plan-gommettes'); if (pal) pal.hidden = modePlan !== 'gommettes';
+    if (modePlan === 'gommettes') renderPaletteGommettes('pieces');
+    dessinerPlanPieces();
+    toast(modePlan === 'gommettes' ? 'Touchez une fenêtre puis le plan pour la repérer' : 'Retour à l’agencement des pièces');
+}
 function dessinerPlanPieces() {
     const canvas = $('plan-canvas'); const cont = $('plan-container'); if (!canvas || !cont) return;
     const liste = piecesCourantes();
@@ -1580,9 +1590,12 @@ function dessinerPlanPieces() {
         }
     });
 
+    dessinerGommettes(ctx, 'pieces', p => ({ x: px(p.x), y: py(p.y) }));
+
     const total = liste.reduce((s, p) => s + surfacePiece(p), 0);
     const emprise = (maxX - minX).toFixed(1) + ' × ' + (maxY - minY).toFixed(1) + ' m';
-    $('plan-msg').innerHTML = `Surface des pièces : <b>${total.toFixed(2)} m²</b><br><span style="font-size:12px;">Emprise ${emprise} · glissez une pièce pour l’ajuster</span>`;
+    const conseil = modePlan === 'gommettes' ? 'touchez une fenêtre dans la liste puis le plan' : 'glissez une pièce pour l’ajuster';
+    $('plan-msg').innerHTML = `Surface des pièces : <b>${total.toFixed(2)} m²</b><br><span style="font-size:12px;">Emprise ${emprise} · ${conseil}</span>`;
 }
 window.addEventListener('resize', debounce(() => { if (vueActive === 'pieces') dessinerPlanPieces(); }, 150));
 
@@ -1596,19 +1609,38 @@ function brancherPlanPieces() {
     const canvas = $('plan-canvas'); if (!canvas) return;
     canvas.addEventListener('pointerdown', e => {
         const pt = pointPlan(e); if (!pt) return;
+        if (modePlan === 'gommettes') {
+            const unite = 1 / (planVue ? planVue.ech : 1);
+            const sousLeDoigt = gommetteSous('pieces', pt, unite);
+            if (sousLeDoigt) {
+                gomSel = sousLeDoigt.id; gomArmee = null;
+                gomDrag = { id: sousLeDoigt.id, dx: pt.x - sousLeDoigt.posPlan.x, dy: pt.y - sousLeDoigt.posPlan.y };
+                canvas.setPointerCapture(e.pointerId);
+                rafraichirGommettes('pieces');
+            } else if (!poserGommette('pieces', pt)) { gomSel = null; rafraichirGommettes('pieces'); }
+            return;
+        }
         const trouvee = [...piecesCourantes()].reverse().find(p => { const d = dimsPiece(p); return pt.x >= p.x && pt.x <= p.x + d.w && pt.y >= p.y && pt.y <= p.y + d.h; });
         pieceSel = trouvee ? trouvee.id : null;
         if (trouvee) { planDrag = { id: trouvee.id, dx: pt.x - trouvee.x, dy: pt.y - trouvee.y }; canvas.setPointerCapture(e.pointerId); }
         dessinerPlanPieces(); renderElementsList('pieces');
     });
     canvas.addEventListener('pointermove', e => {
-        if (!planDrag) return;
         const pt = pointPlan(e); if (!pt) return;
+        if (gomDrag) {
+            const f = db.fens.find(x => String(x.id) === String(gomDrag.id)); if (!f) return;
+            f.posPlan = { x: pt.x - gomDrag.dx, y: pt.y - gomDrag.dy }; dessinerPlanPieces();
+            return;
+        }
+        if (!planDrag) return;
         const p = piecesCourantes().find(x => x.id === planDrag.id); if (!p) return;
         p.x = aimanter(pt.x - planDrag.dx, p, 'x'); p.y = aimanter(pt.y - planDrag.dy, p, 'y');
         dessinerPlanPieces();
     });
-    const fin = () => { if (planDrag) { planDrag = null; sauvegarderLocal(); dessinerPlanPieces(); } };
+    const fin = () => {
+        if (gomDrag) { gomDrag = null; sauvegarderLocal(); rafraichirGommettes('pieces'); return; }
+        if (planDrag) { planDrag = null; sauvegarderLocal(); dessinerPlanPieces(); }
+    };
     canvas.addEventListener('pointerup', fin);
     canvas.addEventListener('pointercancel', fin);
 }
@@ -1627,6 +1659,98 @@ function aimanter(valeur, piece, axe) {
         [b, b - taille].forEach(cand => { const e = Math.abs(cand - valeur); if (e < ecart) { ecart = e; meilleur = cand; } });
     });
     return Math.round((meilleur !== null ? meilleur : valeur) * 20) / 20;
+}
+
+/* --- Gommettes : repérer les fenêtres sur un plan ---
+   Chaque fenêtre peut porter deux repères, l'un sur le plan assemblé des pièces
+   (en mètres), l'autre sur le plan décalqué (en pixels de l'image). Ils sont
+   indépendants : un même lot peut être documenté sur les deux supports. */
+let gomArmee = null;   // fenêtre en attente de pose
+let gomSel = null;     // gommette sélectionnée
+let gomDrag = null;
+const CHAMP_GOM = { pieces: 'posPlan', calque: 'posCal' };
+
+const fensCourantes = () => db.fens.filter(f => f.aid === curAppt && (f.nivInt || 0) === curNivInt);
+const libelleFen = f => {
+    const dim = f.type === 'Hublot' ? `Ø${f.diam || '?'}` : `${f.l || '?'}×${f.h || '?'}`;
+    return `${dim} cm${f.ori ? ' · ' + f.ori : ''}`;
+};
+
+function renderPaletteGommettes(support) {
+    const cont = $(support === 'pieces' ? 'plan-gommettes' : 'cal-gommettes'); if (!cont) return;
+    const champ = CHAMP_GOM[support];
+    const liste = fensCourantes();
+    if (!liste.length) {
+        cont.innerHTML = `<div class="gom-aide">Aucune fenêtre saisie pour ce lot et ce niveau. Ajoutez-les dans Parois › Fenêtres, elles apparaîtront ici.</div>`;
+        return;
+    }
+    const posees = liste.filter(f => f[champ]).length;
+    cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · touchez une fenêtre puis le plan${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
+        liste.map(f => {
+            const etat = gomArmee === f.id ? 'armee' : (f[champ] ? 'posee' : '');
+            return `<button type="button" class="gom-chip ${etat}" data-act="gomChip" data-id="${f.id}" data-support="${support}">
+                <span class="gom-rep">${esc(f.nom || 'F?')}</span>${esc(libelleFen(f))}${f[champ] ? ' ✓' : ''}</button>`;
+        }).join('') +
+        (gomSel ? `<button type="button" class="gom-chip" style="border-color:#FECACA; background:var(--dan-l); color:var(--dan);" data-act="gomRetirer" data-support="${support}">❌ Retirer la gommette</button>` : '');
+}
+Actions.gomChip = d => {
+    const support = d.support; const champ = CHAMP_GOM[support];
+    const f = db.fens.find(x => String(x.id) === String(d.id)); if (!f) return;
+    if (gomArmee === f.id) { gomArmee = null; }
+    else if (f[champ]) { gomSel = f.id; gomArmee = null; toast(`${f.nom || 'Fenêtre'} sélectionnée — glissez-la sur le plan`); }
+    else { gomArmee = f.id; gomSel = null; toast(`Touchez le plan pour poser ${f.nom || 'la fenêtre'}`); }
+    rafraichirGommettes(support);
+};
+Actions.gomRetirer = d => {
+    const support = d.support; const champ = CHAMP_GOM[support];
+    const f = db.fens.find(x => String(x.id) === String(gomSel)); if (!f) return;
+    const ancienne = f[champ]; delete f[champ]; gomSel = null;
+    sauvegarderLocal(); rafraichirGommettes(support);
+    toastAnnuler(`Gommette ${f.nom || ''} retirée`, () => { f[champ] = ancienne; sauvegarderLocal(); rafraichirGommettes(support); });
+};
+function rafraichirGommettes(support) {
+    renderPaletteGommettes(support);
+    if (support === 'pieces') dessinerPlanPieces(); else dessinerCalque();
+}
+// Pose ou déplacement, dans le repère du support (mètres ou pixels d'image)
+function poserGommette(support, pt) {
+    const champ = CHAMP_GOM[support];
+    if (!gomArmee) return false;
+    const f = db.fens.find(x => String(x.id) === String(gomArmee)); if (!f) return false;
+    f[champ] = { x: pt.x, y: pt.y };
+    gomSel = f.id; gomArmee = null;
+    sauvegarderLocal(); rafraichirGommettes(support);
+    toast(`${f.nom || 'Fenêtre'} posée sur le plan ✓`);
+    return true;
+}
+// La pastille est dessinée 24 px au-dessus de son point d'ancrage : c'est elle que
+// le doigt vise, la zone sensible doit donc suivre le dessin. `unite` convertit un
+// pixel écran dans le repère du support (mètres ou pixels d'image).
+const DECALAGE_GOM = 24, RAYON_GOM = 20;
+function gommetteSous(support, pt, unite) {
+    const champ = CHAMP_GOM[support];
+    return fensCourantes().filter(f => f[champ]).reverse().find(f => {
+        const p = f[champ];
+        const surPastille = Math.hypot(p.x - pt.x, p.y - DECALAGE_GOM * unite - pt.y) < RAYON_GOM * unite;
+        const surPointe = Math.hypot(p.x - pt.x, p.y - pt.y) < 12 * unite;
+        return surPastille || surPointe;
+    }) || null;
+}
+// Dessin commun aux deux plans : versEcran convertit du repère du support vers l'écran.
+function dessinerGommettes(ctx, support, versEcranFn) {
+    const champ = CHAMP_GOM[support];
+    fensCourantes().forEach(f => {
+        const p = f[champ]; if (!p) return;
+        const e = versEcranFn(p);
+        const actif = gomSel === f.id;
+        ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x - 5, e.y - 13); ctx.lineTo(e.x + 5, e.y - 13); ctx.closePath();
+        ctx.fillStyle = actif ? '#D97706' : '#2563EB'; ctx.fill();
+        ctx.beginPath(); ctx.arc(e.x, e.y - 24, 14, 0, 7);
+        ctx.fillStyle = actif ? '#D97706' : '#2563EB'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff'; ctx.fillText(String(f.nom || 'F?').slice(0, 4), e.x, e.y - 24);
+    });
 }
 
 /* --- Contour extérieur de l'ensemble des pièces ---
@@ -1915,6 +2039,17 @@ function calPointerDown(e) {
         calDrag = null;
     } else if (calPointers.size === 1) {
         const pos = { x: e.clientX - r.left, y: e.clientY - r.top };
+        if (cal.mode === 'gommettes') {
+            const p = versImage(pos.x, pos.y);
+            const sousLeDoigt = gommetteSous('calque', p, 1 / cal.zoom);
+            if (sousLeDoigt) {
+                gomSel = sousLeDoigt.id; gomArmee = null;
+                gomDrag = { id: sousLeDoigt.id, dx: p.x - sousLeDoigt.posCal.x, dy: p.y - sousLeDoigt.posCal.y };
+                calDrag = null;
+                rafraichirGommettes('calque');
+                return;
+            }
+        }
         if (cal.mode === 'caler' && cal.gabarit) {
             const p = versImage(pos.x, pos.y); const d = dimsGabarit(); const g = cal.gabarit;
             const tol = 26 / cal.zoom;
@@ -1936,6 +2071,11 @@ function calPointerMove(e) {
         const d = Math.hypot(a.x - b.x, a.y - b.y);
         if (calPinch.dist > 4) zoomCalque(d / calPinch.dist, (a.x + b.x) / 2, (a.y + b.y) / 2);
         calPinch.dist = d;
+        return;
+    }
+    if (gomDrag) {
+        const f = db.fens.find(x => String(x.id) === String(gomDrag.id));
+        if (f) { const p = versImage(pos.x, pos.y); f.posCal = { x: p.x - gomDrag.dx, y: p.y - gomDrag.dy }; dessinerCalque(); }
         return;
     }
     if (calGab && cal.gabarit) {
@@ -1969,6 +2109,7 @@ function calPointerMove(e) {
 function calPointerUp(e) {
     calPointers.delete(e.pointerId);
     if (calPointers.size < 2) calPinch = null;
+    if (gomDrag) { gomDrag = null; sauvegarderLocal(); rafraichirGommettes('calque'); return; }
     if (calGab) { calGab = null; sauverEtatCalque(); return; }
     if (!calDrag) return;
     const drag = calDrag; calDrag = null;
@@ -1976,6 +2117,10 @@ function calPointerUp(e) {
     poserPointCalque(versImage(drag.depart.x, drag.depart.y));
 }
 async function poserPointCalque(p) {
+    if (cal.mode === 'gommettes') {
+        if (!poserGommette('calque', p)) { gomSel = null; rafraichirGommettes('calque'); }
+        return;
+    }
     if (cal.mode === 'calibrer') {
         cal.calib.push(p);
         dessinerCalque();
@@ -2138,8 +2283,13 @@ function validerGabarit() {
 function basculerModeCalque(mode) {
     if (!cal.img) { toast('Chargez d’abord un plan'); return; }
     if (mode === 'mesurer' && !cal.echelle) { toast('Calibrez d’abord le plan 📏'); lancerCalibrage(); return; }
-    cal.mode = mode; cal.calib = [];
-    toast(mode === 'mesurer' ? 'Pointez les deux extrémités de la cote à relever' : 'Touchez les angles du lot pour tracer son contour', { duree: 3000 });
+    cal.mode = mode; cal.calib = []; gomArmee = null; gomSel = null;
+    const messages = {
+        mesurer: 'Pointez les deux extrémités de la cote à relever',
+        tracer: 'Touchez les angles du lot pour tracer son contour',
+        gommettes: 'Touchez une fenêtre dans la liste puis le plan pour la repérer'
+    };
+    toast(messages[mode] || '', { duree: 3000 });
     majInterfaceCalque(); dessinerCalque();
 }
 function renderMesuresCalque() {
@@ -2263,9 +2413,15 @@ function majInterfaceCalque() {
     const modes = $('cal-modes');
     if (modes) {
         modes.hidden = !aPlan || cal.mode === 'caler';
-        const bm = $('cal-mode-mesurer'), bt = $('cal-mode-tracer');
+        const bm = $('cal-mode-mesurer'), bt = $('cal-mode-tracer'), bg = $('cal-mode-gommettes');
         if (bm) bm.classList.toggle('on', cal.mode === 'mesurer');
         if (bt) bt.classList.toggle('on', cal.mode === 'tracer');
+        if (bg) bg.classList.toggle('on', cal.mode === 'gommettes');
+    }
+    const palGom = $('cal-gommettes');
+    if (palGom) {
+        palGom.hidden = !(aPlan && cal.mode === 'gommettes');
+        if (!palGom.hidden) renderPaletteGommettes('calque');
     }
     renderMesuresCalque();
 
@@ -2275,7 +2431,12 @@ function majInterfaceCalque() {
     if (res) {
         res.hidden = !aPlan;
         if (aPlan) {
-            if (cal.mode === 'caler' && cal.gabarit) {
+            // Le repérage des fenêtres ne dépend pas de l'échelle : il passe en premier.
+            if (cal.mode === 'gommettes') {
+                const champ = CHAMP_GOM.calque; const liste = fensCourantes();
+                res.innerHTML = `📍 <b>Repérage des fenêtres</b> — ${liste.filter(f => f[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.</span>`;
+            }
+            else if (cal.mode === 'caler' && cal.gabarit) {
                 const d = dimsGabarit(); const ech = echelleGabarit();
                 const largeur = cal.img ? (cal.img.width * ech) : 0;
                 let comparaison = '';
@@ -2358,6 +2519,8 @@ function dessinerCalque() {
         if (grand > 40) etiquette(d.mH.toFixed(2) + ' m', -d.w / 2, 0);
         if (grand > 46) { ctx.font = 'bold 11px sans-serif'; etiquette(g.nom, 0, 0); }
     }
+
+    dessinerGommettes(ctx, 'calque', p => versEcran(p));
 
     // Cotes enregistrées
     cal.mesures.forEach(m => {
@@ -2685,7 +2848,8 @@ async function exportExcel() {
     feuille([{ "Référence": db.copro.ref || "", "Nom": db.copro.nom || "", "Adresse": db.copro.adresse || "", "Code Postal": db.copro.cp || "", "Ville": db.copro.ville || "", "Année constr.": db.copro.annee || "", "Bâtiments": db.copro.batiments || "", "Étages": db.copro.etages || "", "Surface Communs (m²)": db.copro.surfcommuns || "", "VMC Type": db.vmc.type || "", "VMC Période": db.vmc.periode || "", "Chauff Col. Energie": db.chaufCol.energie || "", "Chauff Col. Générateur": db.chaufCol.gen || "", "Chauff Col. Emetteur": db.chaufCol.emetteur || "", "Chauff Col. Année": db.chaufCol.annee || "", "Chauff Col. Puissance": db.chaufCol.puissance || "", "ECS Col. Energie": db.ecsCol.energie || "", "ECS Col. Type": db.ecsCol.type || "", "ECS Col. Année": db.ecsCol.annee || "", "ECS Col. Volume": db.ecsCol.vol || "" }], 'Copro');
     feuille(db.appts.map(a => ({ "Lot": a.num, "Bâtiment": a.bat || "", "Type": a.type === 2 ? "Duplex" : a.type === 3 ? "Triplex" : "Plain-pied", "Étage": a.etage || "", "Niveau ADN": a.niveau || "", "Surface (m²)": a.surf || "", "HSP (m)": a.hsp || "" })), 'Appartements');
     feuille(db.murs.map(m => ({ "Lot": getAptNum(m.aid), "Niveau (Duplex)": m.nivInt || 0, "Orientation": m.ori || "Auto", "Donne sur": m.donne || "", "Matériau": m.mat || "", "Longueur (m)": m.l || "", "Hauteur (m)": m.h || "", "Épaisseur (cm)": m.ep || "", "Doublage": m.doub || "ABSENT", "Isolant": m.iso || "", "Ép. Isolant (cm)": m.isoEp || "" })), 'Murs');
-    feuille(db.fens.map(f => ({ "Lot": getAptNum(f.aid), "Niveau": f.nivInt || 0, "Code ANALYSIMMO": genererCodeFen(f), "Repère": f.nom || "", "Orientation": f.ori || "", "Type": f.type || "", "Matériau": f.mat || "", "Vitrage": f.vit || "", "Ép. Lame (mm)": f.ep || "", "Fermeture": f.fer || "", "Largeur (cm)": f.l || "", "Hauteur (cm)": f.h || "", "Diamètre (cm)": f.diam || "", "Surface Unitaire (m²)": f.surf || "", "Quantité": f.nb || 1, "Motifs": f.motifs || 1 })), 'Fenêtres');
+    feuille(db.fens.map(f => ({ "Lot": getAptNum(f.aid), "Niveau": f.nivInt || 0, "Code ANALYSIMMO": genererCodeFen(f), "Repère": f.nom || "", "Orientation": f.ori || "", "Type": f.type || "", "Matériau": f.mat || "", "Vitrage": f.vit || "", "Ép. Lame (mm)": f.ep || "", "Fermeture": f.fer || "", "Largeur (cm)": f.l || "", "Hauteur (cm)": f.h || "", "Diamètre (cm)": f.diam || "", "Surface Unitaire (m²)": f.surf || "", "Quantité": f.nb || 1, "Motifs": f.motifs || 1,
+        "Repérée sur plan": [f.posPlan ? 'plan des pièces' : '', f.posCal ? 'plan décalqué' : ''].filter(Boolean).join(' + ') || "" })), 'Fenêtres');
     feuille(db.portes.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type": p.type || "", "Matériau": p.mat || "", "Donne sur": p.donne || "", "Isolation": p.iso || "", "Sas": p.sas || "", "Largeur (m)": p.l || "", "Hauteur (m)": p.h || "" })), 'Portes');
     feuille(db.plfs.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Plafonds');
     feuille(db.plas.map(p => ({ "Lot": getAptNum(p.aid), "Niveau": p.nivInt || 0, "Type ADN": p.type || "", "Donne sur": p.donne || "", "Longueur (m)": p.l || "", "Largeur (m)": p.larg || "", "Surface (m²)": p.s || "", "Isolant": p.iso || "", "Ép. Isolant (cm)": p.isoEp || "" })), 'Planchers');

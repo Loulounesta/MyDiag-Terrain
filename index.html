@@ -43,7 +43,7 @@
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.5</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.6</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -245,9 +245,11 @@
             <div class="plan-outils">
                 <button class="btn-xs btn-soft" onclick="assemblerPieces(true)">✨ Réassembler</button>
                 <button class="btn-xs btn-soft" onclick="pivoterPieceSel()">↻ Pivoter</button>
+                <button class="btn-xs btn-soft" id="plan-btn-gom" onclick="basculerGommettesPlan()">📍 Gommettes</button>
             </div>
         </div>
         <canvas id="plan-canvas"></canvas>
+        <div id="plan-gommettes" class="gom-palette" hidden></div>
         <div id="plan-msg" class="plan-msg"></div>
         <div class="plan-actions">
             <button class="btn-xs" style="background:var(--ok); color:#fff;" onclick="appliquerSurfacePieces()">✔️ Appliquer la surface au lot</button>
@@ -302,9 +304,11 @@
     </div>
 
     <div id="cal-modes" class="cal-modes" hidden>
-        <button class="cal-mode" id="cal-mode-mesurer" onclick="basculerModeCalque('mesurer')">📐 Mesurer une cote</button>
-        <button class="cal-mode" id="cal-mode-tracer" onclick="basculerModeCalque('tracer')">✏️ Tracer le contour</button>
+        <button class="cal-mode" id="cal-mode-mesurer" onclick="basculerModeCalque('mesurer')">📐 Mesurer</button>
+        <button class="cal-mode" id="cal-mode-tracer" onclick="basculerModeCalque('tracer')">✏️ Tracer</button>
+        <button class="cal-mode" id="cal-mode-gommettes" onclick="basculerModeCalque('gommettes')">📍 Gommettes</button>
     </div>
+    <div id="cal-gommettes" class="gom-palette" hidden></div>
 
     <div id="cal-gabarit-barre" class="cal-barre" hidden>
         <button class="btn-xs btn-soft" onclick="pivoterGabarit()">↻ Quart de tour</button>
@@ -914,7 +918,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.5</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.6</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

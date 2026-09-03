@@ -254,11 +254,25 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .list-head-info { float: right; color: #94A3B8; font-weight: 700; font-size: 11px; text-transform: none; letter-spacing: 0; }
 #plan-canvas { width: 100%; height: 300px; background: #F8FAFC; border-radius: 12px; border: 2px dashed #E2E8F0; margin-top: 12px; display: block; touch-action: none; }
 .plan-outils { display: flex; gap: 6px; flex-wrap: wrap; }
+.plan-outils .btn-xs.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 .plan-msg { text-align: center; font-size: 13px; font-weight: 600; margin-top: 12px; color: var(--tx2); }
 .plan-msg b { color: var(--ok); font-size: 15px; }
 .plan-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
 .plan-actions .btn-xs { flex: 1 1 auto; min-width: 140px; padding: 12px 10px; }
 .piece-row-sel { border-color: var(--acc); box-shadow: 0 0 0 2px var(--acc-l); }
+
+/* ---------- Gommettes de repérage des fenêtres ---------- */
+.gom-palette { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 4px; scrollbar-width: none; }
+.gom-palette::-webkit-scrollbar { display: none; }
+.gom-palette:empty { display: none; }
+.gom-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 20px; border: 1px solid var(--bor); background: #fff; color: var(--tx2); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.gom-chip .gom-rep { background: #E2E8F0; color: var(--tx); font-weight: 900; border-radius: 6px; padding: 2px 7px; font-size: 12px; }
+.gom-chip.posee { border-color: #BBF7D0; background: var(--ok-l); color: #166534; }
+.gom-chip.posee .gom-rep { background: var(--ok); color: #fff; }
+.gom-chip.armee { border-color: var(--acc); background: var(--acc); color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,0.25); }
+.gom-chip.armee .gom-rep { background: rgba(255,255,255,0.25); color: #fff; }
+.gom-aide { font-size: 12px; font-weight: 700; color: var(--tx2); padding: 4px 4px 0; line-height: 1.5; }
+.gom-aide b { color: var(--acc); }
 
 /* ---------- Calque sur plan existant ---------- */
 .cal-etapes { display: flex; gap: 8px; padding: 12px 14px; }
@@ -273,7 +287,8 @@ body.has-ab .toast { bottom: calc(var(--ab-h) + 16px + var(--sab)); }
 .cal-echelle .cal-ech-txt small { display: block; font-weight: 600; opacity: 0.85; margin-top: 2px; }
 .cal-echelle button { flex-shrink: 0; background: #fff; border: 1px solid currentColor; color: inherit; border-radius: 10px; padding: 9px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
 .cal-gabarit-aide { font-size: 12px; font-weight: 700; color: #B45309; background: var(--warn-l); border: 1px solid #FDE68A; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.5; }
-.cal-modes { display: flex; gap: 8px; margin-bottom: 10px; }
+.cal-modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.cal-mode { flex: 1 1 30%; }
 .cal-mode { flex: 1; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--bor); background: var(--sur); color: var(--tx2); font-size: 13px; font-weight: 800; cursor: pointer; }
 .cal-mode.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 .cal-mesure-ligne { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--bor); }
