@@ -42,7 +42,7 @@
     <div class="hd">
         <div class="hd-title">
             <svg class="hd-logo" aria-hidden="true"><use href="#logo-mydiag"/></svg>
-            MyDiag - DPE <span class="hd-version" id="hd-version">v9.0</span>
+            MyDiag - DPE <span class="hd-version" id="hd-version">v9.1</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div id="voyant-save" class="voyant" title="État de la sauvegarde"></div>
@@ -122,7 +122,7 @@
     <div class="coll-acc-hd" onclick="toggleAcc('vmc-acc', this)"><span>🌀 Ventilation collective</span> <span class="acc-arrow">▶</span></div>
     <div class="coll-acc-body" id="vmc-acc">
         <div class="card">
-            <div class="fr"><span class="fl">Type</span><select id="vmc-type" onchange="saveCoproData()"><option value="">—</option><option>VMC simple flux Hygro</option><option>VMC Basse pression</option><option>VMC Auto-réglable</option><option>Ventilation naturelle</option></select></div>
+            <div class="fr"><span class="fl">Type</span><select id="vmc-type" onchange="saveCoproData()"><option value="">—</option></select></div>
             <div class="fr"><span class="fl">Période</span><select id="vmc-periode" onchange="saveCoproData()"><option value="">—</option><option>Avant 1982</option><option>1982 – 2000</option><option>2001 – 2012</option><option>Après 2012</option></select></div>
         </div>
     </div>
@@ -452,7 +452,9 @@
     </div>
 
     <div class="safe-list-card">
-        <div class="safe-list-head">Fenêtres déjà saisies</div>
+        <div class="safe-list-head">Fenêtres déjà saisies
+            <button class="recap-lien" onclick="goTab('recapfen')">Voir tout le récap ➡️</button>
+        </div>
         <div class="safe-list-body">
             <div id="list-fens"></div>
         </div>
@@ -527,6 +529,28 @@
         <div class="safe-list-head">Planchers déjà saisis</div>
         <div class="safe-list-body"><div id="list-plas"></div></div>
     </div>
+</div>
+
+<div id="vw-recapfen" class="vw">
+    <div class="safe-section-title">Récapitulatif des menuiseries</div>
+    <div class="safe-context-card">
+        <div class="safe-context-head">
+            <div>
+                <div class="safe-context-title">Toutes les fenêtres saisies</div>
+                <div class="safe-context-sub">Dupliquez, copiez vers un autre lot ou corrigez sans changer d’onglet.</div>
+            </div>
+            <div class="safe-mini-badge">🪟 Récap</div>
+        </div>
+        <div class="recap-filtres">
+            <select id="recap-lot" class="recap-sel" onchange="renderRecapFens()"></select>
+            <select id="recap-ori" class="recap-sel" onchange="renderRecapFens()">
+                <option value="">Toutes orientations</option>
+                <option value="Nord">Nord</option><option value="Est">Est</option><option value="Sud">Sud</option><option value="Ouest">Ouest</option>
+            </select>
+        </div>
+        <div id="recap-resume" class="recap-resume"></div>
+    </div>
+    <div id="recap-contenu"></div>
 </div>
 
 <div id="vw-bim" class="vw"><div id="bim-container"></div></div>
@@ -749,7 +773,7 @@
 
         <div style="margin-top:24px; padding:20px; background:var(--tx); border-radius:16px; text-align:center;">
             <div style="color:white; font-weight:700; font-size:15px;">Prêt à révolutionner vos diagnostics ?</div>
-            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.0</span> • L'outil pensé pour le terrain.</div>
+            <div style="color:#94A3B8; font-size:12px; margin-top:5px;">Version <span id="aide-version">9.1</span> • L'outil pensé pour le terrain.</div>
         </div>
     </div>
 

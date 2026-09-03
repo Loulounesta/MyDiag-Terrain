@@ -70,6 +70,19 @@ const Dialogue = {
             <div class="dlg-body"><div class="dlg-title">${esc(titre)}</div><div class="dlg-msg">${esc(message)}</div></div>
             <div class="dlg-actions"><button type="button" class="dlg-cancel" data-val="0">${esc(annuler)}</button><button type="button" class="dlg-ok ${danger ? 'danger' : ''}" data-val="1">${esc(ok)}</button></div>`);
     },
+    // Sélection d'une valeur dans une liste ; retourne la valeur choisie ou null.
+    choisir({ titre = 'Choisir', message = '', options = [], valeur = '', ok = 'Valider', annuler = 'Annuler' } = {}) {
+        if (!this._supporte()) { const r = window.prompt((message ? message + '\n' : '') + options.map((o, i) => `${i + 1}. ${o.label}`).join('\n')); const i = parseInt(r) - 1; return Promise.resolve(options[i] ? options[i].value : null); }
+        const html = `
+            <div class="dlg-body"><div class="dlg-title">${esc(titre)}</div>${message ? `<div class="dlg-msg">${esc(message)}</div>` : ''}
+                <select class="dlg-select" id="dlg-choix">${options.map(o => `<option value="${esc(o.value)}" ${o.value === valeur ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>
+            <div class="dlg-actions"><button type="button" class="dlg-cancel" data-val="0">${esc(annuler)}</button><button type="button" class="dlg-ok" data-val="1">${esc(ok)}</button></div>`;
+        const sel = () => { const e = $('dlg-choix'); return e ? e.value : null; };
+        let choix = valeur;
+        const p = this._ouvrir(html);
+        const dlg = $('dlg'); const e = $('dlg-choix'); if (e) { choix = e.value; e.onchange = () => { choix = e.value; }; }
+        return p.then(v => v ? (sel() ?? choix) : null);
+    },
     alerter(message, titre = 'Information') {
         if (!this._supporte()) { window.alert(message); return Promise.resolve(true); }
         return this._ouvrir(`
@@ -131,8 +144,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.0.1';
-const CACHE_VERSION = 'mydiag-v9-0-1'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.1';
+const CACHE_VERSION = 'mydiag-v9-1'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -264,7 +277,7 @@ const ZONES = [
     { id: 'accueil', ico: '🏠', lbl: 'Accueil', vues: [{ id: 'accueil', lbl: 'Accueil' }] },
     { id: 'dossier', ico: '📁', lbl: 'Dossier', vues: [{ id: 'copro', lbl: '🏢 Copro' }, { id: 'appts', lbl: '🚪 Lots' }] },
     { id: 'parois', ico: '🧱', lbl: 'Parois', vues: [{ id: 'murs', lbl: '🧱 Murs' }, { id: 'fen', lbl: '🪟 Fenêtres' }, { id: 'portes', lbl: '🚪 Portes' }, { id: 'plafonds', lbl: '🔝 Plafonds' }, { id: 'planchers', lbl: '🔽 Planchers' }] },
-    { id: 'synthese', ico: '📊', lbl: 'Synthèse', vues: [{ id: 'bim', lbl: '🏗️ Schéma' }, { id: 'totaux', lbl: '🧮 Totaux' }] },
+    { id: 'synthese', ico: '📊', lbl: 'Synthèse', vues: [{ id: 'recapfen', lbl: '🪟 Récap fenêtres' }, { id: 'bim', lbl: '🏗️ Schéma' }, { id: 'totaux', lbl: '🧮 Totaux' }] },
     { id: 'plus', ico: '⋯', lbl: 'Plus', vues: [{ id: 'bureau', lbl: '🖥️ Mode Bureau' }, { id: 'export', lbl: '📤 Export' }, { id: 'aide', lbl: '❓ Aide' }] }
 ];
 const ZONE_PAR_VUE = {}; ZONES.forEach(z => z.vues.forEach(v => { ZONE_PAR_VUE[v.id] = z.id; }));
@@ -299,6 +312,7 @@ function goTab(tabId, opts = {}) {
     if (tabId === 'accueil') updateDashboard();
     if (tabId === 'appts') renderApptsList();
     if (tabId === 'aide') majStatutHorsLigne();
+    if (tabId === 'recapfen') renderRecapFens();
     if (tabId === 'bim') renderBIM();
     if (tabId === 'totaux') renderTotauxTable();
     if (tabId === 'bureau') { renderBureauTarget(); renderBureauList(); }
@@ -323,44 +337,121 @@ function scrollVers(id) { const el = $(id); if (el && el.scrollIntoView) el.scro
    4. RÉFÉRENTIELS ADN
    ========================================================================== */
 const ADN = {
-    MURS: ["Pierre de taille moellons constitués d'un seul matériau / inconnu", "Pierre de taille moellons avec remplissage tout venant", "Pisé ou béton de terre stabilisée", "Pans de bois sans remplissage", "Briques pleines simples", "Briques creuses", "Blocs de béton pleins", "Blocs de béton creux", "Béton banché", "Brique terre cuite alvéolaire", "Ossature bois sans remplissage", "Inconnu"],
-    DONNE_SUR_MURS: ["Extérieur", "Local non chauffé (autre que véranda)", "Local non chauffé et non accessible", "Circulations communes", "Local chauffé", "Bâtiment ou espace autre qu'habitation", "Comble", "Terre (paroi enterrée)", "Sous-sol non chauffé"],
-    FEN_TYPE: ["Fenêtres battantes", "Fenêtres coulissantes", "Portes-fenêtres coulissantes", "Portes-fenêtres battantes sans soubassement", "Portes-fenêtres battantes avec soubassement", "Fenêtres sans ouverture possible", "Portes-fenêtres sans ouverture possible", "Fenêtre de toit (Velux)", "Hublot"],
-    FEN_VITRAGE: ["Simple vitrage vertical", "Double vitrage vertical", "Survitrage vertical", "Triple vitrage vertical", "Brique de verre pleine", "Brique de verre creuse", "Polycarbonate"],
-    FEN_MATIERE: ["Menuiserie PVC", "Menuiserie bois", "Menuiserie métallique avec rupture de pont thermique", "Menuiserie métallique sans rupture de pont thermique", "Menuiserie bois/métal"],
-    FEN_FERMETURE: ["Absence", "Jalousie accordéon", "Fermeture sans ajours, volets roulants Alu", "Volet roulant PVC ou bois (épaisseur tablier ≤ 12mm)", "Persienne coulissante", "Volet roulant PVC ou bois (épaisseur tablier > 12mm)"],
-    PLAFONDS: ["Dalle béton", "Bois sous solives bois", "Bois sur solives bois", "Entre solives bois", "Bois sur solives métallique", "Bois sous solives métallique", "Entrevous, terre-cuite, poutrelles béton", "Combles aménagés sous rampants", "Plaques de plâtre", "Inconnu"],
-    DONNE_SUR_PLAFOND: ["Terrasse", "Combles aménagés", "Combles perdus", "Local chauffé", "Local non chauffé", "Circulations communes", "Extérieur"],
-    PLANCHERS: ["Dalle béton", "Entre solives bois", "Bois sur solives bois", "Entre solives métallique", "Bois sur solives métalliques", "Entrevous, terre-cuite, poutrelles béton", "Voutains en brique", "Entrevous isolants", "Inconnu"],
-    DONNE_SUR_PLANCHER: ["Terre-plein", "Vide sanitaire", "Local non chauffé", "Local chauffé", "Extérieur", "Circulations communes", "Terre (paroi enterrée)", "Sous-sol non chauffé"]
-};
+    // Listes officielles ADN (fichier ADN_Nomenclature_PARFAITE1.xlsx).
+    // Les 7 premiers types sont ceux de l'ADN ; les 2 derniers sont propres au relevé
+    // terrain (le hublot bascule le formulaire en saisie de diamètre).
+    FEN_TYPE: ['Fenêtres battantes', 'Fenêtres coulissantes', 'Portes-fenêtres coulissantes', 'Portes-fenêtres battantes sans soubassement', 'Portes-fenêtres battantes avec soubassement', 'Fenêtres sans ouverture possible', 'Portes-fenêtres sans ouverture possible', 'Fenêtre de toit (Velux)', 'Hublot'],
+    FEN_VITRAGE: ['Simple vitrage vertical', 'Simple vitrage horizontal', 'Double vitrage vertical', 'Double vitrage horizontal', 'Survitrage vertical', 'Survitrage horizontal', 'Triple vitrage vertical', 'Triple vitrage horizontal', 'Brique de verre pleine', 'Brique de verre creuse', 'Polycarbonate'],
+    FEN_MATIERE: ['Menuiserie métallique à rupture de pont thermique', 'Menuiserie métallique sans rupture de pont thermique', 'Menuiserie PVC', 'Menuiserie Bois', 'Menuiserie Bois / Métal'],
+    FEN_FERMETURE: ['Absence', 'Jalousie accordéon, fermeture à lames orientables y compris les vénitiens extérieurs tout métal, volets battants ou persiennes avec ajours fixes', 'Fermeture sans ajours en position déployée, volets roulants Alu', 'Volet roulant PVC ou bois (épaisseur tablier ≤ 12mm)', 'Persienne coulissante et volet battant PVC ou bois (épaisseur tablier ≤ 22mm)', 'Persienne coulissante et volet battant PVC ou bois (épaisseur tablier ≥ 22mm)', 'Volet roulant PVC ou bois (épaisseur tablier > 12mm)'],
+    MURS: ['Pierre de taille moellons constitués d\'un seul matériau / inconnu', 'Pierre de taille moellons avec remplissage tout venant', 'Pisé ou béton de terre stabilisée (à partir d\'argile crue)', 'Pans de bois sans remplissage tout venant', 'Pans de bois avec remplissage tout venant', 'Rondins bois', 'Briques pleines simples', 'Briques pleines doubles avec lame d\'air', 'Briques creuses', 'Blocs de béton pleins', 'Blocs de béton creux', 'Béton banché', 'Béton de mâchefer', 'Brique terre cuite alvéolaire', 'Béton cellulaire construit avant 2013', 'Béton cellulaire construit à partir de 2013', 'Sandwich béton / isolant / béton (sans isolation rapportée)', 'Ossature bois sans remplissage', 'Cloison de plâtre', 'Autre matériau traditionnel ancien', 'Autre matériau innovant récent', 'Autre matériau non répertorié', 'Inconnu'],
+    DONNE_SUR_MURS: ['Extérieur', 'Local non chauffé (autre que véranda)', 'Local non chauffé et non accessible', 'Circulations communes', 'Local chauffé', 'Bâtiment ou espace autre qu\'habitation', 'Comble', 'Terre (paroi enterrée)', 'Véranda non chauffée, loggia fermée', 'Local tertiaire à l\'intérieur de l\'immeuble', 'Sous-sol non chauffé'],
+    PLAFONDS: ['Inconnu', 'Inconnu avec ou sans remplissage', 'Bois sous solives bois', 'Bois sur solives bois', 'Bardeaux et remplissage', 'Entre solives bois avec ou sans remplissage', 'Bois sur solives métallique', 'Bois sous solives métallique', 'Entre solives métallique avec ou sans remplissage', 'Entrevous, terre-cuite, poutrelles béton', 'Dalle béton', 'Combles aménagés sous rampants', 'Toit de chaume', 'Plaques de plâtre', 'Autre type de plafond non répertorié', 'Toiture en bac acier'],
+    DONNE_SUR_PLAFOND: ['Terrasse', 'Combles aménagés', 'Combles perdus', 'Local chauffé', 'Local non chauffé', 'Local non chauffé et non accessible', 'Circulations communes', 'Extérieur', 'Bâtiment autre qu\'habitation', 'Véranda non chauffée, loggia fermée', 'Local tertiaire à l\'intérieur de l\'immeuble'],
+    PLANCHERS: ['Inconnu', 'Inconnu avec ou sans remplissage', 'Entre solives bois avec ou sans remplissage', 'Bardeaux et remplissage', 'Bois sur solives bois', 'Entre solives métallique avec ou sans remplissage', 'Bois sur solives métalliques', 'Voutains sur solives métallique', 'Entrevous, terre-cuite, poutrelles béton', 'Dalle béton', 'Voutains en brique ou moellons', 'Entrevous isolants', 'Autre type de plancher non répertorié'],
+    DONNE_SUR_PLANCHER: ['Terre-plein', 'Vide sanitaire', 'Local non chauffé', 'Local non chauffé et non accessible', 'Bâtiment autre que d\'habitation', 'Local chauffé', 'Extérieur', 'Circulations communes', 'Terre (paroi enterrée)', 'Sous-sol non chauffé', 'Local tertiaire à l\'intérieur de l\'immeuble'],
+    VENTILATION: ['VMC simple flux', 'VMC SF Hygro A < 2001', 'VMC SF Hygro A de 2001 à 2012', 'VMC SF Hygro A après 2012', 'VMC SF Hygro B < 2001', 'VMC SF Hygro B de 2001 à 2012', 'VMC SF Hygro B après 2012', 'VMC simple flux autoréglable < 1982', 'VMC simple flux autoréglable de 1982 à 2000', 'VMC simple flux autoréglable de 2001 à 2012', 'VMC simple flux autoréglable après 2012', 'VMC SF Gaz < 2001', 'VMC SF Gaz de 2001 à 2012', 'VMC SF Gaz après 2012', 'VMC double flux avec échangeur < 2012', 'VMC double flux avec échangeur après 2012', 'VMC double flux sans échangeur < 2012', 'VMC double flux sans échangeur après 2012', 'Ventilation hybride < 2001', 'Ventilation hybride de 2001 à 2012', 'Ventilation hybride après 2012', 'Ventilation naturelle par conduit', 'Ventilation naturelle par conduit avec entrées d\'air hygro', 'Ventilation par entrées d\'air hautes et basses', 'Ventilation par ouverture de fenêtres'],
+    ECS_ELECTRIQUE: ['Chauffe eau thermodynamique à accumulation', 'Chauffe eau horizontal', 'Chauffe eau vertical', 'Pompe à chaleur Air/Eau', 'Pompe à chaleur Eau/Eau', 'Pompe à chaleur Eau glycolée/Eau', 'Pompe à chaleur Géothermie', 'Pompe à chaleur Air/Air', 'Chaudière électrique', 'Installation collective unique multi bâtiment']};
+
 const CHAUF_GEN_MAP = {
-    "Electrique": ["Pompe à chaleur Air/Eau", "Pompe à chaleur Air/Air", "Convecteur électrique NFC", "Panneau rayonnant électrique", "Radiateur électrique", "Plancher rayonnant électrique", "Chaudière électrique", "Installation collective unique"],
-    "Gaz naturel": ["Radiateur gaz à ventouse", "Chaudière basse température", "Chaudière standard", "Chaudière condensation", "Chaudière PAC hybride", "Installation collective unique"],
-    "GPL": ["Chaudière basse température", "Chaudière standard", "Chaudière condensation", "Installation collective unique"],
-    "Fioul": ["Chaudière basse température", "Chaudière standard", "Chaudière condensation", "Installation collective unique"],
-    "Réseau de chaleur": ["Installation collective unique multi bâtiment"]
+    'Electrique': ['Pompe à chaleur Air/Eau', 'Pompe à chaleur Eau/Eau', 'Pompe à chaleur Eau glycolée/Eau', 'Pompe à chaleur Géothermie', 'Pompe à chaleur Air/Air', 'Convecteur électrique NFC', 'Convecteur électrique NF**', 'Convecteur électrique NF***', 'Panneau rayonnant électrique NFC', 'Panneau rayonnant électrique NF**', 'Panneau rayonnant électrique NF***', 'Radiateur électrique NFC', 'Radiateur électrique NF**', 'Radiateur électrique NF***', 'Autres émetteurs à effet joule', 'Plancher rayonnant électrique', 'Plafond rayonnant électrique', 'Radiateur électrique à accumulation', 'Chaudière électrique', 'Convecteur bi-jonction', 'Installation collective unique multi bâtiment'],
+    'Gaz naturel': ['Radiateur gaz à ventouse', 'Radiateur gaz sur conduits de fumée', 'Générateur d\'air chaud', 'Chaudière basse température', 'Chaudière standard', 'Chaudière classique', 'Chaudière condensation', 'Chaudière PAC hybride', 'Installation collective unique multi bâtiment'],
+    'GPL': ['Poêle GPL', 'Générateur d\'air chaud', 'Chaudière basse température', 'Chaudière standard', 'Chaudière classique', 'Chaudière condensation', 'Chaudière PAC hybride', 'Installation collective unique multi bâtiment', 'Radiateur gaz à ventouse', 'Radiateur gaz sur conduits de fumée'],
+    'Fioul': ['Poêle fioul', 'Générateur d\'air chaud', 'Chaudière basse température', 'Chaudière standard', 'Chaudière classique', 'Chaudière condensation', 'Chaudière PAC hybride', 'Installation collective unique multi bâtiment'],
+    'Bois': ['Cuisinière', 'Poêle à granulés', 'Chaudière bois', 'Chaudière à granulés', 'Poêle à bois bouilleur', 'Installation collective unique multi bâtiment', 'Foyer fermé', 'Poêle bûche', 'Insert', 'Poêle à bois bouilleur granulés'],
+    'Charbon': ['Chaudière atmosphérique charbon', 'Cuisinière', 'Foyer fermé', 'Poêle', 'Insert', 'Installation collective unique multi bâtiment'],
+    'Réseau de chaleur': ['Réseau de chaleur']
 };
-const EMETTEUR_MAP = {
-    "Electrique": ["Radiateur", "Plancher chauffant", "Plafond chauffant", "Air soufflé"],
-    "Gaz naturel": ["Radiateur", "Plancher chauffant", "Plafond chauffant", "Air soufflé"],
-    "GPL": ["Radiateur", "Plancher chauffant", "Air soufflé"],
-    "Fioul": ["Radiateur", "Plancher chauffant", "Air soufflé"],
-    "Réseau de chaleur": ["Radiateur", "Plancher chauffant", "Air soufflé"]
-};
+const EMETTEURS_ADN = ['Radiateur', 'Plancher chauffant', 'Plafond chauffant', 'Air soufflé', 'Autres équipements'];const EMETTEUR_MAP = new Proxy({}, { get: (_, k) => (typeof k === 'string' && CHAUF_GEN_MAP[k]) ? EMETTEURS_ADN : undefined });
+
+// L'ADN ne publie la liste détaillée que pour l'ECS électrique ; les autres
+// énergies conservent les générateurs usuels, alignés sur les libellés ADN.
 const ECS_GEN_MAP = {
-    "Electrique": ["Chauffe eau thermodynamique", "Chauffe-eau horizontal", "Chauffe-eau vertical", "Pompe à chaleur Air/Eau", "Chaudière électrique", "Installation collective unique"],
-    "Gaz naturel": ["Chauffe-eau gaz instantané", "Accumulateur gaz", "Chaudière basse température", "Chaudière standard", "Chaudière condensation", "Production par la chaudière", "Installation collective unique"],
-    "GPL": ["Production par la chaudière", "Installation collective unique"],
-    "Fioul": ["Production par la chaudière", "Installation collective unique"],
-    "Réseau de chaleur": ["Installation collective unique multi bâtiment"]
+    'Electrique': ADN.ECS_ELECTRIQUE,
+    'Gaz naturel': ['Chauffe-eau gaz instantané', 'Accumulateur gaz', 'Chaudière basse température', 'Chaudière standard', 'Chaudière condensation', 'Production par la chaudière', 'Installation collective unique multi bâtiment'],
+    'GPL': ['Chauffe-eau gaz instantané', 'Accumulateur gaz', 'Production par la chaudière', 'Installation collective unique multi bâtiment'],
+    'Fioul': ['Production par la chaudière', 'Installation collective unique multi bâtiment'],
+    'Bois': ['Production par la chaudière', 'Installation collective unique multi bâtiment'],
+    'Charbon': ['Production par la chaudière', 'Installation collective unique multi bâtiment'],
+    'Réseau de chaleur': ['Installation collective unique multi bâtiment']
 };
+
+// Anciens libellés (avant reprise de la nomenclature ADN) vers les libellés officiels.
+// Appliquée une fois au chargement ; toute valeur absente de cette table est conservée
+// telle quelle et reste sélectionnable (voir setSelect).
+const MIGRATIONS_ADN = {
+    // Murs
+    'Pisé ou béton de terre stabilisée': 'Pisé ou béton de terre stabilisée (à partir d\'argile crue)',
+    'Pans de bois sans remplissage': 'Pans de bois sans remplissage tout venant',
+    // Menuiseries
+    'Menuiserie métallique avec rupture de pont thermique': 'Menuiserie métallique à rupture de pont thermique',
+    'Menuiserie bois': 'Menuiserie Bois',
+    'Menuiserie bois/métal': 'Menuiserie Bois / Métal',
+    // Fermetures
+    'Jalousie accordéon': 'Jalousie accordéon, fermeture à lames orientables y compris les vénitiens extérieurs tout métal, volets battants ou persiennes avec ajours fixes',
+    'Fermeture sans ajours, volets roulants Alu': 'Fermeture sans ajours en position déployée, volets roulants Alu',
+    'Persienne coulissante': 'Persienne coulissante et volet battant PVC ou bois (épaisseur tablier ≤ 22mm)',
+    // Plafonds et planchers
+    'Entre solives bois': 'Entre solives bois avec ou sans remplissage',
+    'Entre solives métallique': 'Entre solives métallique avec ou sans remplissage',
+    'Voutains en brique': 'Voutains en brique ou moellons',
+    // Générateurs
+    'Installation collective unique': 'Installation collective unique multi bâtiment',
+    'Panneau rayonnant électrique': 'Panneau rayonnant électrique NFC',
+    'Radiateur électrique': 'Radiateur électrique NFC',
+    'Chaudière atmosphérique charbon': 'Chaudière atmosphérique charbon',
+    // ECS
+    'Chauffe eau thermodynamique': 'Chauffe eau thermodynamique à accumulation',
+    'Chauffe-eau horizontal': 'Chauffe eau horizontal',
+    'Chauffe-eau vertical': 'Chauffe eau vertical',
+    // Ventilation (seuls les cas sans ambiguïté ; les autres restent à re-sélectionner)
+    'Ventilation naturelle': 'Ventilation naturelle par conduit'
+};
+const VMC_AUTO_PAR_PERIODE = {
+    'Avant 1982': 'VMC simple flux autoréglable < 1982',
+    '1982 – 2000': 'VMC simple flux autoréglable de 1982 à 2000',
+    '2001 – 2012': 'VMC simple flux autoréglable de 2001 à 2012',
+    'Après 2012': 'VMC simple flux autoréglable après 2012'
+};
+
+// Reprend les libellés stockés dans le dossier. Retourne le nombre de valeurs converties.
+function migrerVersADN() {
+    let n = 0;
+    const conv = (o, k) => { const v = o && o[k]; if (v && MIGRATIONS_ADN[v] && MIGRATIONS_ADN[v] !== v) { o[k] = MIGRATIONS_ADN[v]; n++; } };
+    db.murs.forEach(m => { conv(m, 'mat'); conv(m, 'donne'); });
+    db.fens.forEach(f => { conv(f, 'mat'); conv(f, 'vit'); conv(f, 'fer'); conv(f, 'type'); });
+    db.modelesFens.forEach(f => { conv(f, 'mat'); conv(f, 'vit'); conv(f, 'fer'); conv(f, 'type'); });
+    db.portes.forEach(p => conv(p, 'donne'));
+    db.plfs.forEach(p => { conv(p, 'type'); conv(p, 'donne'); });
+    db.plas.forEach(p => { conv(p, 'type'); conv(p, 'donne'); });
+    db.chaufs.forEach(c => { conv(c, 'gen'); conv(c, 'emetteur'); });
+    db.ecss.forEach(e => conv(e, 'type'));
+    conv(db.chaufCol, 'gen'); conv(db.chaufCol, 'emetteur'); conv(db.ecsCol, 'type');
+    // La VMC autoréglable ne devient précise qu'en combinant l'ancien type et l'ancienne période.
+    if (db.vmc.type === 'VMC Auto-réglable' && VMC_AUTO_PAR_PERIODE[db.vmc.periode]) { db.vmc.type = VMC_AUTO_PAR_PERIODE[db.vmc.periode]; n++; }
+    else conv(db.vmc, 'type');
+    return n;
+}
+
 const ENERGIES_IND = ["Electrique", "Gaz naturel", "GPL", "Fioul", "Bois", "Charbon"];
+
+// Affecte une valeur à une liste déroulante sans jamais la perdre : si la valeur
+// enregistrée ne figure plus dans la nomenclature, elle est ajoutée en tête et signalée.
+function setSelect(id, val) {
+    const el = $(id); if (!el) return;
+    if (val && el.tagName === 'SELECT' && ![...el.options].some(o => o.value === val)) {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val + ' (ancienne valeur)'; opt.dataset.horsNomenclature = '1';
+        el.insertBefore(opt, el.firstChild);
+    }
+    el.value = val ?? '';
+}
 
 function peuplerSelects() {
     const fill = (id, arr) => { const el = $(id); if (el) el.innerHTML = arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); };
     fill('m-mat', ADN.MURS); fill('m-donne', ADN.DONNE_SUR_MURS); fill('f-type', ADN.FEN_TYPE); fill('f-mat', ADN.FEN_MATIERE); fill('f-vit', ADN.FEN_VITRAGE); fill('f-fer', ADN.FEN_FERMETURE);
     fill('p-type', ADN.PLAFONDS); fill('p-donne', ADN.DONNE_SUR_PLAFOND); fill('s-type', ADN.PLANCHERS); fill('s-donne', ADN.DONNE_SUR_PLANCHER); fill('bur-mat', ADN.MURS); fill('bur-donne', ADN.DONNE_SUR_MURS);
+    const vmc = $('vmc-type'); if (vmc) vmc.innerHTML = '<option value="">—</option>' + ADN.VENTILATION.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 function updateChaufGen(eId, gId, emId) {
     const en = $(eId).value; const g = $(gId); const em = $(emId);
@@ -422,11 +513,11 @@ function saveCoproData() {
 }
 function chargerFormulaireCopro() {
     CHAMPS_COPRO.forEach(k => { if (db.copro[k]) $('copro-' + k).value = db.copro[k]; });
-    if (db.vmc.type) $('vmc-type').value = db.vmc.type;
-    if (db.vmc.periode) $('vmc-periode').value = db.vmc.periode;
-    if (db.chaufCol.energie) { $('col-chauf-energie').value = db.chaufCol.energie; updateChaufGen('col-chauf-energie', 'col-chauf-gen', 'col-chauf-emetteur'); $('col-chauf-gen').value = db.chaufCol.gen || ''; $('col-chauf-emetteur').value = db.chaufCol.emetteur || ''; }
+    if (db.vmc.type) setSelect('vmc-type', db.vmc.type);
+    if (db.vmc.periode) setSelect('vmc-periode', db.vmc.periode);
+    if (db.chaufCol.energie) { setSelect('col-chauf-energie', db.chaufCol.energie); updateChaufGen('col-chauf-energie', 'col-chauf-gen', 'col-chauf-emetteur'); setSelect('col-chauf-gen', db.chaufCol.gen || ''); setSelect('col-chauf-emetteur', db.chaufCol.emetteur || ''); }
     $('col-chauf-annee').value = db.chaufCol.annee || ''; $('col-chauf-puissance').value = db.chaufCol.puissance || '';
-    if (db.ecsCol.energie) { $('col-ecs-energie').value = db.ecsCol.energie; updateEcsGen('col-ecs-energie', 'col-ecs-type'); $('col-ecs-type').value = db.ecsCol.type || ''; }
+    if (db.ecsCol.energie) { setSelect('col-ecs-energie', db.ecsCol.energie); updateEcsGen('col-ecs-energie', 'col-ecs-type'); setSelect('col-ecs-type', db.ecsCol.type || ''); }
     $('col-ecs-annee').value = db.ecsCol.annee || ''; $('col-ecs-vol').value = db.ecsCol.vol || '';
 }
 async function resetProjet() {
@@ -653,8 +744,8 @@ function clonerChauf(id) { const src = db.chaufs.find(x => x.id === id); if (!sr
 function editerChauf(aptId, chaufId) {
     const c = db.chaufs.find(x => x.id === chaufId); if (!c) return;
     ouvrirAcc(`acc-chauf-${aptId}`);
-    $(`ifc-energie-${aptId}`).value = c.energie; updateChaufGen(`ifc-energie-${aptId}`, `ifc-gen-${aptId}`, `ifc-emetteur-${aptId}`);
-    $(`ifc-gen-${aptId}`).value = c.gen; $(`ifc-emetteur-${aptId}`).value = c.emetteur || ''; $(`ifc-annee-${aptId}`).value = c.annee || ''; $(`ifc-puissance-${aptId}`).value = c.puissance || '';
+    setSelect(`ifc-energie-${aptId}`, c.energie); updateChaufGen(`ifc-energie-${aptId}`, `ifc-gen-${aptId}`, `ifc-emetteur-${aptId}`);
+    setSelect(`ifc-gen-${aptId}`, c.gen); setSelect(`ifc-emetteur-${aptId}`, c.emetteur || ''); $(`ifc-annee-${aptId}`).value = c.annee || ''; $(`ifc-puissance-${aptId}`).value = c.puissance || '';
     const btn = $(`btn-chauf-${aptId}`); btn.textContent = 'Modifier ce chauffage'; btn.setAttribute('data-edit-id', chaufId);
     scrollVers(`sysform-chauf-${aptId}`);
 }
@@ -677,8 +768,8 @@ function clonerEcs(id) { const src = db.ecss.find(x => x.id === id); if (!src) r
 function editerEcs(aptId, ecsId) {
     const e = db.ecss.find(x => x.id === ecsId); if (!e) return;
     ouvrirAcc(`acc-ecs-${aptId}`);
-    $(`ife-energie-${aptId}`).value = e.energie; updateEcsGen(`ife-energie-${aptId}`, `ife-type-${aptId}`);
-    $(`ife-type-${aptId}`).value = e.type; $(`ife-annee-${aptId}`).value = e.annee || ''; $(`ife-vol-${aptId}`).value = e.vol || '';
+    setSelect(`ife-energie-${aptId}`, e.energie); updateEcsGen(`ife-energie-${aptId}`, `ife-type-${aptId}`);
+    setSelect(`ife-type-${aptId}`, e.type); $(`ife-annee-${aptId}`).value = e.annee || ''; $(`ife-vol-${aptId}`).value = e.vol || '';
     const btn = $(`btn-ecs-${aptId}`); btn.textContent = 'Modifier cette ECS'; btn.setAttribute('data-edit-id', ecsId);
     scrollVers(`sysform-ecs-${aptId}`);
 }
@@ -916,6 +1007,7 @@ function sauverParoi(type) {
     if (!editParoiId) db[type].push(el);
     editParoiId = null;
     sauvegarderLocal(); renderElementsList(type); majBarreAction();
+    if (type === 'fens') renderRecapFens();
     if (curAppt !== 'copro') updateApptBadges(curAppt);
     // Mémoire de saisie : on ne vide que les dimensions, les propriétés restent pour l'élément suivant.
     if (type === 'murs') { $('m-l').value = ''; drawCroquis(); $('m-l').focus(); }
@@ -927,7 +1019,7 @@ function sauverParoi(type) {
 }
 function editerParoi(type, id) {
     const p = db[type].find(x => String(x.id) === String(id)); if (!p) return;
-    editParoiId = p.id; const set = (i, val) => { const e = $(i); if (e) e.value = val; };
+    editParoiId = p.id; const set = (i, val) => setSelect(i, val);
     if (type === 'murs') {
         set('m-ori', p.ori); set('m-donne', p.donne); set('m-mat', p.mat); set('m-l', p.l); set('m-h', p.h); set('m-ep', p.ep || ''); set('m-doub', p.doub || 'ABSENT'); set('m-iso', p.iso || 'Non'); set('m-iso-ep', p.isoEp || '');
         if ((p.iso && p.iso !== 'Non') || (p.doub && p.doub !== 'ABSENT')) ouvrirAcc('acc-iso-murs'); majResumeIso();
@@ -997,7 +1089,7 @@ function toggleFenType() {
 function chargerModeleFen(id) {
     if (!id) { editParoiId = null; $('f-l').value = ''; $('f-h').value = ''; $('f-diam').value = ''; majBarreAction(); return; }
     const m = db.modelesFens.find(x => x.id === id); if (!m) return;
-    $('f-ori').value = m.ori || 'Nord'; $('f-type').value = m.type; toggleFenType(); $('f-mat').value = m.mat; $('f-vit').value = m.vit; $('f-ep').value = m.ep || ''; $('f-fer').value = m.fer;
+    setSelect('f-ori', m.ori || 'Nord'); setSelect('f-type', m.type); toggleFenType(); setSelect('f-mat', m.mat); setSelect('f-vit', m.vit); $('f-ep').value = m.ep || ''; setSelect('f-fer', m.fer);
     $('f-l').value = m.l || ''; $('f-h').value = m.h || ''; $('f-diam').value = m.diam || ''; $('f-motifs').value = m.motifs || '1';
     toast('Modèle chargé ✓');
 }
@@ -1016,6 +1108,132 @@ function renderBibliFens() {
     });
     cont.innerHTML = html + '</div>';
 }
+
+/* --- Récapitulatif des fenêtres : vue d'ensemble, duplication et correction rapides --- */
+let recapFiltreLot = '', recapFiltreOri = '';
+
+function surfaceFen(f) {
+    let u = parseFloat(f.surf);
+    if (isNaN(u)) u = f.type === 'Hublot' ? (Math.PI * Math.pow((parseFloat(f.diam) || 0) / 2, 2) / 10000) : ((parseFloat(f.l) || 0) * (parseFloat(f.h) || 0)) / 10000;
+    return u * (parseFloat(f.nb) || 1);
+}
+function nomLot(aid) {
+    if (aid === 'copro') return '🏢 Parties communes';
+    const a = db.appts.find(x => x.id === aid);
+    return a ? `🚪 Lot ${a.num}` : '⚠️ Lot supprimé';
+}
+function libelleNiveau(f) {
+    const a = db.appts.find(x => x.id === f.aid);
+    if (!a || !a.type || a.type < 2) return '';
+    const n = f.nivInt || 0;
+    return ' · ' + (n === 0 ? 'Niv. bas' : (n === 1 && a.type === 3) ? 'Niv. inter.' : 'Niv. haut');
+}
+
+function renderRecapFens() {
+    const selLot = $('recap-lot');
+    if (selLot) {
+        // Reprendre le choix affiché avant de reconstruire la liste, sinon un changement
+        // de filtre serait annulé par son propre rendu.
+        if (selLot.options.length) recapFiltreLot = selLot.value;
+        selLot.innerHTML = '<option value="">Tous les lots</option><option value="copro">🏢 Parties communes</option>' +
+            db.appts.map(a => `<option value="${a.id}">🚪 Lot ${esc(a.num)}</option>`).join('');
+        selLot.value = [...selLot.options].some(o => o.value === recapFiltreLot) ? recapFiltreLot : '';
+        recapFiltreLot = selLot.value;
+    }
+    const selOri = $('recap-ori'); if (selOri) recapFiltreOri = selOri.value;
+
+    const liste = db.fens.filter(f => (!recapFiltreLot || f.aid === recapFiltreLot) && (!recapFiltreOri || f.ori === recapFiltreOri));
+    const nb = liste.reduce((s, f) => s + (parseFloat(f.nb) || 1), 0);
+    const surf = liste.reduce((s, f) => s + surfaceFen(f), 0);
+    const resume = $('recap-resume');
+    if (resume) resume.innerHTML = `<span>${nb}</span> menuiserie(s) · <span>${surf.toFixed(2)} m²</span> de surface vitrée · <span>${liste.length}</span> ligne(s)`;
+
+    const cont = $('recap-contenu'); if (!cont) return;
+    if (!liste.length) {
+        cont.innerHTML = `<div class="recap-groupe"><div class="recap-vide">${db.fens.length ? 'Aucune fenêtre ne correspond à ce filtre.' : 'Aucune fenêtre saisie pour le moment.'}</div></div>`;
+        return;
+    }
+    // Regroupement par lot, parties communes d'abord puis ordre de création des lots
+    const ordre = ['copro', ...db.appts.map(a => a.id)];
+    const groupes = new Map();
+    liste.forEach(f => { if (!groupes.has(f.aid)) groupes.set(f.aid, []); groupes.get(f.aid).push(f); });
+    const cles = [...groupes.keys()].sort((a, b) => { const ia = ordre.indexOf(a), ib = ordre.indexOf(b); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
+
+    cont.innerHTML = cles.map(aid => {
+        const items = groupes.get(aid);
+        const sg = items.reduce((s, f) => s + surfaceFen(f), 0);
+        const ng = items.reduce((s, f) => s + (parseFloat(f.nb) || 1), 0);
+        return `<div class="recap-groupe">
+            <div class="recap-groupe-hd"><span>${esc(nomLot(aid))}</span><small>${ng} menuiserie(s) · ${sg.toFixed(2)} m²</small></div>
+            ${items.map(f => {
+                const dim = f.type === 'Hublot' ? `Ø ${esc(f.diam || '?')} cm` : `${esc(f.l || '?')} × ${esc(f.h || '?')} cm`;
+                const fer = f.fer && f.fer !== 'Absence' ? esc(f.fer) : 'Sans fermeture';
+                return `<div class="recap-ligne ${editParoiId === f.id ? 'encours' : ''}">
+                    <div class="recap-rep">${esc(f.nom || 'F?')}</div>
+                    <div class="recap-info">
+                        <div class="recap-titre">${esc(f.type || '')} · ${esc(f.ori || '')}${esc(libelleNiveau(f))}</div>
+                        <div class="recap-detail">${dim} — ${esc(f.mat || '')}<br>${esc(f.vit || '')}${f.ep ? ' (lame ' + esc(f.ep) + ' mm)' : ''}<br>Fermeture : ${fer}</div>
+                        <div class="recap-chiffres">Qté ${esc(f.nb || 1)} · ${esc(f.motifs || 1)} motif(s) · ${surfaceFen(f).toFixed(2)} m²</div>
+                    </div>
+                    <div class="recap-actions">
+                        <button class="ico-btn ok" title="Quantité +1" data-act="recapPlus" data-id="${f.id}">➕</button>
+                        <button class="ico-btn ok" title="Dupliquer dans ce lot" data-act="recapCloner" data-id="${f.id}">🔄</button>
+                        <button class="ico-btn gris" title="Copier vers un autre lot" data-act="recapCopier" data-id="${f.id}">↗️</button>
+                        <button class="ico-btn acc" title="Modifier" data-act="recapEditer" data-id="${f.id}">✏️</button>
+                        <button class="ico-btn dan" title="Supprimer" data-act="recapSupp" data-id="${f.id}">❌</button>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }).join('');
+}
+
+const trouverFen = id => db.fens.find(f => String(f.id) === String(id));
+Object.assign(Actions, {
+    recapPlus: d => {
+        const f = trouverFen(d.id); if (!f) return;
+        const avant = parseFloat(f.nb) || 1; f.nb = String(avant + 1);
+        sauvegarderLocal(); renderRecapFens(); updateDashboard();
+        toastAnnuler(`${f.nom || 'Fenêtre'} : quantité ${avant + 1}`, () => { f.nb = String(avant); sauvegarderLocal(); renderRecapFens(); updateDashboard(); });
+    },
+    recapCloner: d => {
+        const f = trouverFen(d.id); if (!f) return;
+        const clone = { ...f, id: Date.now() + Math.random() };
+        db.fens.push(clone); sauvegarderLocal(); renderRecapFens(); updateDashboard();
+        if (f.aid !== 'copro') updateApptBadges(f.aid);
+        toastAnnuler(`${f.nom || 'Fenêtre'} dupliquée dans ${nomLot(f.aid)}`, () => { db.fens = db.fens.filter(x => x.id !== clone.id); sauvegarderLocal(); renderRecapFens(); updateDashboard(); });
+    },
+    recapCopier: async d => {
+        const f = trouverFen(d.id); if (!f) return;
+        const options = [{ value: 'copro', label: '🏢 Parties communes' }];
+        db.appts.forEach(a => {
+            const nivs = (a.type && a.type > 1) ? a.type : 1;
+            for (let n = 0; n < nivs; n++) options.push({ value: `${a.id}|${n}`, label: `🚪 Lot ${a.num}${nivs > 1 ? ' · ' + (n === 0 ? 'Niv. bas' : (n === 1 && nivs === 3) ? 'Niv. inter.' : 'Niv. haut') : ''}` });
+        });
+        const cible = await Dialogue.choisir({ titre: 'Copier la menuiserie', message: `${f.nom || 'Fenêtre'} — ${f.type || ''} ${f.l && f.h ? f.l + '×' + f.h + ' cm' : ''}`, options, ok: 'Copier' });
+        if (!cible) return;
+        const [aid, niv] = cible.split('|');
+        const clone = { ...f, id: Date.now() + Math.random(), aid, nivInt: parseInt(niv) || 0 };
+        db.fens.push(clone); sauvegarderLocal(); renderRecapFens(); updateDashboard();
+        if (aid !== 'copro') updateApptBadges(aid);
+        toastAnnuler(`Copiée vers ${nomLot(aid)}`, () => { db.fens = db.fens.filter(x => x.id !== clone.id); sauvegarderLocal(); renderRecapFens(); updateDashboard(); });
+    },
+    recapEditer: d => {
+        const f = trouverFen(d.id); if (!f) return;
+        curAppt = f.aid; curNivInt = f.nivInt || 0;
+        goTab('fen');
+        editerParoi('fens', f.id);
+        toast(`Modification de ${f.nom || 'la fenêtre'} — ${nomLot(f.aid)}`);
+    },
+    recapSupp: d => {
+        const idx = db.fens.findIndex(f => String(f.id) === String(d.id)); if (idx < 0) return;
+        const item = db.fens[idx]; db.fens.splice(idx, 1);
+        if (editParoiId === item.id) { editParoiId = null; majBarreAction(); }
+        const apres = () => { sauvegarderLocal(); renderRecapFens(); updateDashboard(); if (item.aid !== 'copro') updateApptBadges(item.aid); };
+        apres();
+        toastAnnuler(`${item.nom || 'Fenêtre'} supprimée`, () => { db.fens.splice(idx, 0, item); apres(); });
+    }
+});
 
 // --- Croquis du niveau (canvas) ---
 function getShortMat(mat) {
@@ -1302,16 +1520,52 @@ async function restaurerBackup(texte) {
     await localforage.setItem(CLE_DB, db); location.reload();
 }
 function genererCodeFen(f) {
-    const rep = f.nom || 'F?'; let typeAbr = '';
-    if (f.type) { if (f.type === 'Fenêtres battantes') typeAbr = 'FB'; else if (f.type === 'Fenêtres coulissantes') typeAbr = 'FC'; else if (f.type === 'Portes-fenêtres coulissantes') typeAbr = 'PFC'; else if (f.type.includes('Portes-fenêtres battantes')) typeAbr = 'PFB'; else if (f.type.includes('sans ouverture')) typeAbr = 'Fixe'; else if (f.type.includes('toit')) typeAbr = 'Velux'; else if (f.type === 'Hublot') typeAbr = 'Hublot'; }
-    const dim = f.type === 'Hublot' ? `Ø${f.diam}` : `${f.l}x${f.h}`; let matAbr = '';
-    if (f.mat) { if (f.mat.includes('PVC')) matAbr = 'PVC'; else if (f.mat.includes('bois/métal')) matAbr = 'Bois/Métal'; else if (f.mat.includes('bois')) matAbr = 'Bois'; else if (f.mat.includes('avec rupture')) matAbr = 'Métal RPT'; else if (f.mat.includes('sans rupture')) matAbr = 'Métal'; }
+    const contient = (v, ...mots) => { const t = String(v || '').toLowerCase(); return mots.some(m => t.includes(m.toLowerCase())); };
+    const rep = f.nom || 'F?';
+    let typeAbr = '';
+    if (f.type) {
+        if (f.type === 'Fenêtres battantes') typeAbr = 'FB';
+        else if (f.type === 'Fenêtres coulissantes') typeAbr = 'FC';
+        else if (f.type === 'Portes-fenêtres coulissantes') typeAbr = 'PFC';
+        else if (contient(f.type, 'Portes-fenêtres battantes')) typeAbr = 'PFB';
+        else if (contient(f.type, 'sans ouverture')) typeAbr = 'Fixe';
+        else if (contient(f.type, 'toit')) typeAbr = 'Velux';
+        else if (f.type === 'Hublot') typeAbr = 'Hublot';
+    }
+    const dim = f.type === 'Hublot' ? `Ø${f.diam}` : `${f.l}x${f.h}`;
+    // Libellés ADN : « Menuiserie métallique à rupture de pont thermique », « Menuiserie Bois / Métal »…
+    let matAbr = '';
+    if (f.mat) {
+        if (contient(f.mat, 'PVC')) matAbr = 'PVC';
+        else if (contient(f.mat, 'bois / métal', 'bois/métal')) matAbr = 'Bois/Métal';
+        else if (contient(f.mat, 'sans rupture')) matAbr = 'Métal';
+        else if (contient(f.mat, 'à rupture', 'avec rupture')) matAbr = 'Métal RPT';
+        else if (contient(f.mat, 'bois')) matAbr = 'Bois';
+    }
+    // L'ADN distingue vitrage vertical et horizontal : le suffixe H conserve l'information.
     let vitAbr = '';
-    if (f.vit) { if (f.vit.includes('Simple')) vitAbr = 'SV'; else if (f.vit.includes('Double')) vitAbr = 'DV' + (f.ep ? ` 4/${f.ep}/4` : ''); else if (f.vit.includes('Triple')) vitAbr = 'TV' + (f.ep ? ` 4/${f.ep}/4/${f.ep}/4` : ''); else if (f.vit.includes('Survitrage')) vitAbr = 'Surv.'; else if (f.vit.includes('Brique')) vitAbr = 'Brique'; else if (f.vit.includes('Polycarbonate')) vitAbr = 'Poly.'; }
+    if (f.vit) {
+        const h = contient(f.vit, 'horizontal') ? ' H' : '';
+        if (contient(f.vit, 'Simple')) vitAbr = 'SV' + h;
+        else if (contient(f.vit, 'Double')) vitAbr = 'DV' + (f.ep ? ` 4/${f.ep}/4` : '') + h;
+        else if (contient(f.vit, 'Triple')) vitAbr = 'TV' + (f.ep ? ` 4/${f.ep}/4/${f.ep}/4` : '') + h;
+        else if (contient(f.vit, 'Survitrage')) vitAbr = 'Surv.' + h;
+        else if (contient(f.vit, 'Brique')) vitAbr = 'Brique';
+        else if (contient(f.vit, 'Polycarbonate')) vitAbr = 'Poly.';
+    }
     let ferAbr = '';
-    if (f.fer) { if (f.fer === 'Absence') ferAbr = 'sFerm'; else if (f.fer.includes('volets roulants Alu')) ferAbr = 'aVR Alu'; else if (f.fer.includes('Volet roulant')) ferAbr = 'aVR'; else if (f.fer.includes('Persienne')) ferAbr = 'aPers.'; else if (f.fer.includes('Jalousie')) ferAbr = 'aJalousie'; }
+    if (f.fer) {
+        if (f.fer === 'Absence') ferAbr = 'sFerm';
+        else if (contient(f.fer, 'volets roulants Alu')) ferAbr = 'aVR Alu';
+        else if (contient(f.fer, 'Volet roulant')) ferAbr = 'aVR';
+        // La jalousie est testée avant la persienne : son libellé ADN contient aussi
+        // « persiennes avec ajours fixes ».
+        else if (contient(f.fer, 'Jalousie')) ferAbr = 'aJalousie';
+        else if (contient(f.fer, 'Persienne')) ferAbr = 'aPers.';
+    }
     return `${rep} ${typeAbr} ${f.ori || ''} ${dim} ${matAbr} ${vitAbr} ${ferAbr}`.trim().replace(/\s+/g, ' ');
 }
+
 async function exportExcel() {
     if (!await assurerLib('XLSX', 'lib/xlsx.full.min.js')) return;
     toast('Génération du fichier Excel...'); const wb = XLSX.utils.book_new();
@@ -1405,6 +1659,7 @@ async function init() {
     if (!data) { try { const ancien = await localforage.getItem(CLE_DB_ANCIENNE); if (ancien) { data = ancien; migration = true; } } catch (e) { /* ignoré */ } }
     await Medias.charger();
     if (data) db = data; normaliserDb();
+    const nbMigres = migrerVersADN();
     if (migration || Medias.contientInline()) {
         await Medias.externaliser(); await localforage.setItem(CLE_DB, db);
         if (migration) { try { await localforage.removeItem(CLE_DB_ANCIENNE); } catch (e) { /* ignoré */ } }
@@ -1412,6 +1667,7 @@ async function init() {
     $('hd-version').textContent = 'v' + APP_VERSION; const av = $('aide-version'); if (av) av.textContent = APP_VERSION;
     construireNavigation(); brancherUploader(); peuplerSelects(); chargerFormulaireCopro();
     renderDocs(); renderCoproPhotos(); renderApptsList(); renderBibliFens(); updateDashboard();
+    if (nbMigres) { sauvegarderLocal(); setTimeout(() => toast(`${nbMigres} libellé(s) mis à jour vers la nomenclature ADN`, { duree: 4000 }), 800); }
     const vueInitiale = location.hash.replace('#', '');
     history.replaceState({ vue: ZONE_PAR_VUE[vueInitiale] ? vueInitiale : 'accueil' }, '', location.pathname + location.search + (ZONE_PAR_VUE[vueInitiale] ? '#' + vueInitiale : ''));
     goTab(ZONE_PAR_VUE[vueInitiale] ? vueInitiale : 'accueil', { historique: false });

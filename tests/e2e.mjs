@@ -195,6 +195,8 @@ check(await page.locator('#list-portes .item-row').count() === 1, 'porte enregis
 await page.click('.nav-vue[data-vue="plafonds"]'); await page.fill('#p-s', '40'); await page.click('#ab-save');
 check(await page.locator('#list-plfs .item-row').count() === 1, 'plafond enregistré');
 await page.click('.nav-zone[data-zone="synthese"]');
+check(await page.locator('#vw-recapfen').isVisible(), 'zone Synthèse : récap fenêtres en premier');
+await page.click('.nav-vue[data-vue="bim"]');
 check(await page.locator('#vw-bim').isVisible(), 'schéma affiché');
 await page.click('.nav-vue[data-vue="totaux"]');
 await page.selectOption('#totaux-category', 'fens');
