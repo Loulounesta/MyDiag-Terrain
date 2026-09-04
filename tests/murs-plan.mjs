@@ -56,15 +56,23 @@ check(await page.evaluate(() => mursTraces('calque').length) === 0, 'aucun mur r
 
 console.log('2. Le mur se déduit de la gommette posée');
 // Les messages sont collectés : un toast de migration ADN peut survenir au démarrage.
-await page.evaluate(() => { window.__toasts = []; const brut = window.toast; window.toast = (m, o) => { window.__toasts.push(String(m)); return brut(m, o); }; });
-const messages = () => page.evaluate(() => window.__toasts.slice());
+const brancherToasts = () => page.evaluate(() => { window.__toasts = []; const brut = window.toast; window.toast = (m, o) => { window.__toasts.push(String(m)); return brut(m, o); }; });
+const messages = () => page.evaluate(() => (window.__toasts || []).slice());
+await brancherToasts();
 await page.click('#plan-btn-gom');
-check((await page.locator('#plan-gommettes').innerText()).includes('6 repérés 📐'), 'la palette annonce les murs repérables');
+check((await page.locator('#plan-gommettes').innerText()).includes('6 façades reconnues 📐'), 'la palette annonce les façades reconnues');
+// Le plan est amené sous la barre collante : sinon un appui près de son bord haut
+// (la pastille d'une gommette est dessinée 24 px au-dessus de son ancre) touche l'entête.
+const amenerLePlan = async () => {
+  await page.evaluate(() => window.scrollBy(0, document.getElementById('plan-canvas').getBoundingClientRect().top - 220));
+  await page.waitForTimeout(200);
+};
 const versEcranPlan = async pt => {
   const v = await page.evaluate(() => ({ ...planVue }));
   const b = await page.locator('#plan-canvas').boundingBox();
   return { x: b.x + v.dx + (pt.x - v.minX) * v.ech, y: b.y + v.dy + (pt.y - v.minY) * v.ech };
 };
+await amenerLePlan();
 await page.click('#plan-gommettes .gom-chip:has-text("F1")');
 let c = await versEcranPlan({ x: 2.5, y: 0.15 });
 await page.mouse.click(c.x, c.y);
@@ -76,6 +84,7 @@ check(messagePose.some(m => m.includes('F1 posé sur le mur Nord')), `le message
 
 console.log('3. Le rattachement suit le déplacement');
 const pos1 = await page.evaluate(() => db.fens[0].posPlan);
+await amenerLePlan();
 const depart = await versEcranPlan(pos1);
 const arrivee = await versEcranPlan({ x: 0.15, y: 2 });
 await page.mouse.move(depart.x, depart.y - 24); await page.mouse.down();
@@ -174,6 +183,51 @@ check(String(await page.evaluate(() => db.fens[0].murId)) === String(murOuest.id
 await page.click('.nav-zone[data-zone="plus"]'); await page.click('.nav-vue[data-vue="export"]');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.click('text=Dossier de plans (PDF)')]);
 check(dl.suggestedFilename().endsWith('.pdf'), 'export PDF des plans généré');
+
+await brancherToasts();   // le rechargement de l'étape 9 a remis la page à neuf
+console.log('10. Murs saisis à la main, sans géométrie mémorisée');
+// Le cas d'un dossier existant : les murs viennent du formulaire Parois › Murs,
+// ils n'ont pas de segment. Le contour des pièces doit suffire à les reconnaître.
+await page.evaluate(async () => {
+  db.appts.push({ id: 'a2', num: 'M02', type: 1, hsp: '2.50' });
+  db.pieces.push({ id: 21, aid: 'a2', nivInt: 0, nom: 'Séjour', l: '6', larg: '4', rot: 0, x: 0, y: 0 });
+  db.murs.push({ id: 201, aid: 'a2', nivInt: 0, ori: 'Nord', donne: 'Extérieur', mat: 'Briques creuses', l: '6', h: '2.5', iso: 'Non', doub: 'ABSENT' },
+                { id: 202, aid: 'a2', nivInt: 0, ori: 'Ouest', donne: 'Extérieur', mat: 'Briques creuses', l: '4', h: '2.5', iso: 'Non', doub: 'ABSENT' });
+  db.fens.push({ id: 31, aid: 'a2', nivInt: 0, nom: 'F9', ori: 'Nord', type: 'Fenêtres battantes', mat: 'Menuiserie PVC', vit: 'Double vitrage vertical', fer: 'Absence', l: '100', h: '120', nb: '1', motifs: '1', surf: '1.200' });
+  sauvegarderLocal();
+});
+await page.click('.nav-zone[data-zone="dossier"]'); await page.click('.nav-vue[data-vue="pieces"]');
+await page.selectOption('#pie-target', 'a2');
+await page.waitForTimeout(400);
+check(await page.evaluate(() => mursTraces('pieces').length) === 0, 'aucun de ces murs ne porte de segment');
+check(await page.evaluate(() => facadesDuPlan('pieces').filter(f => f.mur).length) === 2, 'les deux murs saisis sont rapprochés du contour');
+await page.click('#plan-btn-gom');
+check((await page.locator('#plan-gommettes').innerText()).includes('2 façades reconnues 📐'), 'la palette les annonce');
+await amenerLePlan();
+await page.click('#plan-gommettes .gom-chip:has-text("F9")');
+c = await versEcranPlan({ x: 3, y: 0.15 });
+await page.mouse.click(c.x, c.y);
+await page.waitForTimeout(300);
+check(String(await page.evaluate(() => db.fens[3].murId)) === '201', 'F9 rattachée au mur Nord saisi à la main');
+const dits = (await messages()).filter(m => m.includes('F9'));
+check(dits.some(m => m.includes('sur le mur Nord')), `le message nomme le mur : « ${dits.join(' | ')} »`);
+
+console.log('11. Façade sans mur correspondant');
+await page.evaluate(() => { gomArmee = db.fens[3].id; delete db.fens[3].posPlan; db.fens[3].murId = ''; poserGommette('pieces', { x: 3, y: 3.9 }); });
+await page.waitForTimeout(250);
+check(await page.evaluate(() => db.fens[3].murId) === '', 'aucun mur Sud saisi : rien n’est inventé');
+const manque = (await messages()).filter(m => m.includes('aucun mur'));
+check(manque.some(m => m.includes('Sud')), `le message dit ce qui manque : « ${manque.join(' | ')} »`);
+
+console.log('12. Repère 📐 dans la liste des murs');
+await page.click('.nav-zone[data-zone="parois"]'); await page.click('.nav-vue[data-vue="fen"]');
+await page.selectOption('#fen-target', 'a2');
+await page.waitForTimeout(300);
+await page.click('#list-fens .item-row:has-text("F9") [data-act="editerParoi"]');
+await page.waitForTimeout(300);
+const opts2 = await page.locator('#f-mur option').allInnerTexts();
+check(opts2.filter(t => t.includes('📐')).length === 2, 'les deux murs reconnus sur le plan sont signalés');
+await page.click('#ab-cancel');
 
 await browser.close();
 console.log(`\nRésultat : ${ok} OK, ${ko} KO`);

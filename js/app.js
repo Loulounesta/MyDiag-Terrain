@@ -190,8 +190,8 @@ const Plateforme = {
 /* ==========================================================================
    2. PERSISTANCE
    ========================================================================== */
-const APP_VERSION = '9.9';
-const CACHE_VERSION = 'mydiag-v9-9'; // doit rester égal à CACHE dans sw.js
+const APP_VERSION = '9.9.1';
+const CACHE_VERSION = 'mydiag-v9-9-1'; // doit rester égal à CACHE dans sw.js
 const CLE_DB = 'mydiag_v9';
 const CLE_DB_ANCIENNE = 'mydiag_v8_10';
 const DELAI_SAUVEGARDE = 500;
@@ -1425,7 +1425,7 @@ window.addEventListener('orientationchange', () => setTimeout(() => { if (vueAct
 
 function fermerPolygone(cX, cY) {
     const dx = -cX, dy = -cY; const l = Math.hypot(dx, dy).toFixed(2);
-    const ori = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'Nord' : 'Sud') : (dy >= 0 ? 'Est' : 'Ouest');
+    const ori = orientationSegment(dx, dy);
     const m = { id: Date.now(), aid: curAppt, nivInt: curNivInt, ori, donne: $('m-donne').value || 'Extérieur', mat: $('m-mat').value || 'Inconnu', l: String(l), h: $('m-h').value || '', ep: $('m-ep').value || '', iso: $('m-iso').value || 'Non', isoEp: $('m-iso-ep').value || '', doub: $('m-doub').value || 'ABSENT', vectX: dx, vectY: dy };
     db.murs.push(m); sauvegarderLocal(); renderElementsList('murs'); drawCroquis(); toast('Mur de fermeture (' + l + 'm) généré ✓');
 }
@@ -1735,14 +1735,16 @@ function surfaceVitreePiece(pieceId) {
 const mursCourants = () => db.murs.filter(m => m.aid === curAppt && (m.nivInt || 0) === curNivInt);
 function libelleMur(m) {
     const surf = ((parseFloat(m.l) || 0) * (parseFloat(m.h) || 0)).toFixed(1);
-    // 📐 : mur situé sur un plan, une gommette posée dessus s'y rattache toute seule.
-    return `${m.seg ? '📐 ' : ''}${m.ori || 'Sans orientation'} · ${m.l || '?'}×${m.h || '?'} m (${surf} m²) · ${getShortMat(m.mat)}`;
+    return `${m.ori || 'Sans orientation'} · ${m.l || '?'}×${m.h || '?'} m (${surf} m²) · ${getShortMat(m.mat)}`;
 }
 function peuplerMursDispo(selectId, valeur) {
     const sel = $(selectId); if (!sel) return;
     const liste = mursCourants();
+    // 📐 : mur reconnu sur le plan des pièces, une gommette posée le long de sa
+    // façade s'y rattache toute seule.
+    const situes = new Set(facadesDuPlan('pieces').filter(f => f.mur).map(f => String(f.mur.id)));
     sel.innerHTML = '<option value="">— Aucun mur associé —</option>' +
-        liste.map(m => `<option value="${m.id}">${esc(libelleMur(m))}</option>`).join('');
+        liste.map(m => `<option value="${m.id}">${(situes.has(String(m.id)) || m.seg) ? '📐 ' : ''}${esc(libelleMur(m))}</option>`).join('');
     setSelect(selectId, valeur || '');
     if (!liste.length) sel.innerHTML = '<option value="">Aucun mur saisi pour ce lot et ce niveau</option>';
 }
@@ -1763,32 +1765,67 @@ function verifierPercement(mur, surfaceAjoutee, sauf) {
 }
 
 /* --- Repérer le mur sous une gommette ---
-   Une fenêtre perce une façade avant d'appartenir à une pièce : les murs issus
-   d'un contour (plan des pièces ou plan décalqué) portent leur segment, donc la
-   gommette posée le long d'une façade se rattache toute seule au bon mur.
-   Les murs saisis à la main, sans géométrie, restent choisis dans la liste. */
+   Une fenêtre perce une façade avant d'appartenir à une pièce. Le contour du
+   plan (assemblage des pièces ou tracé du calque) donne les façades ; chacune
+   est rapprochée d'un mur déjà saisi, par orientation puis par longueur la plus
+   proche, un mur ne servant qu'une fois. Les murs saisis à la main comptent donc
+   autant que ceux générés depuis un contour : eux seuls gardent leur segment,
+   qui prend le relais si le contour a disparu. */
+const orientationSegment = (dx, dy) => Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'Nord' : 'Sud') : (dy >= 0 ? 'Est' : 'Ouest');
 const mursTraces = repere => mursCourants().filter(m => m.seg && m.repere === repere);
-const SEUIL_MUR = 1.2;   // mètres : au-delà, la gommette n'est plus « sur » ce mur
+const SEUIL_MUR = 1.2;   // mètres : au-delà, la gommette n'est plus « sur » cette façade
 function distancePointSegment(pt, s) {
     const vx = s.bx - s.ax, vy = s.by - s.ay;
     const long2 = vx * vx + vy * vy;
     const t = long2 ? Math.max(0, Math.min(1, ((pt.x - s.ax) * vx + (pt.y - s.ay) * vy) / long2)) : 0;
     return Math.hypot(pt.x - (s.ax + t * vx), pt.y - (s.ay + t * vy));
 }
-function murSousPoint(pt, repere) {
-    let meilleur = null, ecart = SEUIL_MUR;
-    mursTraces(repere).forEach(m => {
-        const d = distancePointSegment(pt, m.seg);
-        if (d < ecart) { ecart = d; meilleur = m; }
+// Contour du support, en mètres : celui des pièces assemblées, ou celui relevé
+// sur le calque une fois l'échelle connue.
+function contourDuSupport(repere) {
+    if (repere === 'calque') {
+        if (!cal.echelle || cal.pts.length < 3) return [];
+        return cal.pts.map(p => ({ x: p.x * cal.echelle, y: p.y * cal.echelle }));
+    }
+    return contourPieces(piecesCourantes().filter(p => p.x !== undefined && p.y !== undefined));
+}
+// Façades du plan : segment, et mur saisi correspondant quand il y en a un.
+function facadesDuPlan(repere) {
+    const contour = contourDuSupport(repere);
+    if (contour.length < 3) return mursTraces(repere).map(m => ({ seg: m.seg, mur: m, ori: m.ori, longueur: parseFloat(m.l) || 0 }));
+    const libres = mursCourants().slice();
+    const pris = new Set();
+    const ecart = (m, l) => Math.abs((parseFloat(m.l) || 0) - l);
+    return contour.map((a, i) => {
+        const b = contour[(i + 1) % contour.length];
+        const seg = { ax: a.x, ay: a.y, bx: b.x, by: b.y };
+        const ori = orientationSegment(b.x - a.x, b.y - a.y);
+        const longueur = Math.hypot(b.x - a.x, b.y - a.y);
+        const candidats = libres.filter(m => (m.ori || '') === ori && !pris.has(m.id));
+        const mur = candidats.length ? candidats.reduce((meilleur, m) => ecart(m, longueur) < ecart(meilleur, longueur) ? m : meilleur) : null;
+        if (mur) pris.add(mur.id);
+        return { seg, mur, ori, longueur };
     });
-    return meilleur;
+}
+// Façade la plus proche du point, et son mur : c'est elle que la gommette désigne.
+function facadeSousPoint(pt, repere) {
+    let meilleure = null, ecart = SEUIL_MUR;
+    facadesDuPlan(repere).forEach(f => {
+        const d = distancePointSegment(pt, f.seg);
+        if (d < ecart) { ecart = d; meilleure = f; }
+    });
+    return meilleure;
+}
+function murSousPoint(pt, repere) {
+    const f = facadeSousPoint(pt, repere);
+    return f ? f.mur : null;
 }
 // Aucun mur sous le doigt : le choix fait à la main dans le formulaire est gardé,
 // on n'efface jamais un rattachement que l'utilisateur a posé lui-même.
 function rattacherAMurSous(o, pt, repere) {
-    const mur = murSousPoint(pt, repere);
-    if (mur) o.murId = mur.id;
-    return mur;
+    const facade = facadeSousPoint(pt, repere);
+    if (facade && facade.mur) o.murId = facade.mur.id;
+    return facade;
 }
 const surfaceOuvrant = o => genreOuvrant(o) === 'porte'
     ? (parseFloat(o.l) || 0) * (parseFloat(o.h) || 0)
@@ -1828,9 +1865,9 @@ function renderPaletteGommettes(support) {
         return;
     }
     const posees = liste.filter(x => x.o[champ]).length;
-    const traces = mursTraces(support).length;
-    const aide = traces
-        ? `posez la gommette le long d'une façade : le mur (${traces} repéré${traces > 1 ? 's' : ''} 📐) se rattache tout seul`
+    const reliees = facadesDuPlan(support).filter(f => f.mur).length;
+    const aide = reliees
+        ? `posez la gommette le long d'une façade : le mur se rattache tout seul (${reliees} façade${reliees > 1 ? 's' : ''} reconnue${reliees > 1 ? 's' : ''} 📐)`
         : 'touchez un ouvrant puis le plan';
     cont.innerHTML = `<div class="gom-aide" style="flex:0 0 100%;">${posees} / ${liste.length} posée(s) · ${aide}${gomSel ? ' · <b>gommette sélectionnée : glissez-la ou retirez-la</b>' : ''}</div>` +
         liste.map(({ o, genre }) => {
@@ -1867,11 +1904,14 @@ function poserGommette(support, pt) {
     const o = trouverOuvrant(gomArmee); if (!o) return false;
     o[champ] = { x: pt.x, y: pt.y };
     gomSel = o.id; gomArmee = null;
-    const { mur, piece } = rattacherOuvrant(o, pt, support);
+    const { facade, mur, piece } = rattacherOuvrant(o, pt, support);
     sauvegarderLocal(); rafraichirGommettes(support);
     const exces = verifierPercement(mur, surfaceOuvrant(o), o.id);
-    if (exces) toast(`⚠️ ${repereOuvrant(o, genreOuvrant(o))} posé${phraseRattachement(mur, piece)}, mais les ouvrants de ce mur totalisent ${exces.total.toFixed(2)} m² pour une façade de ${exces.surfMur.toFixed(2)} m²`, { duree: 6000 });
-    else toast(`${repereOuvrant(o, genreOuvrant(o))} posé${phraseRattachement(mur, piece)} ✓`);
+    const rep = repereOuvrant(o, genreOuvrant(o));
+    // Trois issues : le percement est impossible, la façade n'a pas de mur saisi, ou tout va bien.
+    if (exces) toast(`⚠️ ${rep} posé${phraseRattachement(facade, piece)}, mais les ouvrants de ce mur totalisent ${exces.total.toFixed(2)} m² pour une façade de ${exces.surfMur.toFixed(2)} m²`, { duree: 6000 });
+    else if (facade && !mur) toast(`${rep} posé${phraseRattachement(facade, piece)}`, { duree: 5000 });
+    else toast(`${rep} posé${phraseRattachement(facade, piece)} ✓`);
     return true;
 }
 // La pastille est dessinée 24 px au-dessus de son point d'ancrage : c'est elle que
@@ -1894,12 +1934,18 @@ const pointMetres = (pt, support) => support === 'calque'
 // Pose et déplacement partagent le même rattachement : le mur d'abord, la pièce ensuite.
 function rattacherOuvrant(o, pt, support) {
     const enMetres = pointMetres(pt, support);
-    const mur = enMetres ? rattacherAMurSous(o, enMetres, support) : null;
+    const facade = enMetres ? rattacherAMurSous(o, enMetres, support) : null;
     const piece = support === 'pieces' ? rattacherAPieceSous(o, pt) : null;
-    return { mur, piece };
+    return { facade, mur: facade && facade.mur, piece };
 }
-const phraseRattachement = (mur, piece) =>
-    (mur ? ` sur le mur ${mur.ori || ''} (${mur.l || '?'} m)` : '') + (piece ? ` dans « ${piece.nom || 'Pièce'} »` : '');
+// Le long d'une façade sans mur saisi, le message le dit plutôt que de rester muet.
+const phraseRattachement = (facade, piece) => {
+    const mur = facade && facade.mur;
+    const lieu = piece ? ` dans « ${piece.nom || 'Pièce'} »` : '';
+    if (mur) return ` sur le mur ${mur.ori || ''} (${mur.l || '?'} m)${lieu}`;
+    if (facade) return `${lieu} — façade ${facade.ori} de ${facade.longueur.toFixed(2)} m, aucun mur ${facade.ori} saisi à cette longueur`;
+    return lieu;
+};
 function gommetteSous(support, pt, unite) {
     const champ = CHAMP_GOM[support];
     return ouvrantsCourants().map(x => x.o).filter(o => o[champ]).reverse().find(o => {
@@ -1909,15 +1955,17 @@ function gommetteSous(support, pt, unite) {
         return surPastille || surPointe;
     }) || null;
 }
-/* Les murs issus du contour sont signalés sur le plan : une pastille d'orientation
-   au milieu de chaque façade, et la façade entière soulignée quand elle porte la
-   gommette sélectionnée. On voit ainsi où poser une fenêtre pour qu'elle se
-   rattache au bon mur. `versEcranFn` reçoit des mètres du plan. */
+/* Chaque façade du plan porte une pastille d'orientation, et la façade entière
+   est soulignée quand elle porte la gommette sélectionnée. On voit ainsi où poser
+   une fenêtre pour qu'elle se rattache au bon mur. Une façade sans mur saisi
+   reste en gris clair : le plan montre alors ce qu'il manque dans Parois › Murs.
+   `versEcranFn` reçoit des mètres du plan. */
 function dessinerMursTraces(ctx, repere, versEcranFn) {
     const selection = gomSel ? murDe(trouverOuvrant(gomSel)) : null;
-    mursTraces(repere).forEach(m => {
-        const a = versEcranFn({ x: m.seg.ax, y: m.seg.ay }), b = versEcranFn({ x: m.seg.bx, y: m.seg.by });
-        const actif = selection && String(selection.id) === String(m.id);
+    facadesDuPlan(repere).forEach(f => {
+        const m = f.mur;
+        const a = versEcranFn({ x: f.seg.ax, y: f.seg.ay }), b = versEcranFn({ x: f.seg.bx, y: f.seg.by });
+        const actif = m && selection && String(selection.id) === String(m.id);
         if (actif) {
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
             ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(217,119,6,0.85)'; ctx.stroke();
@@ -1926,10 +1974,10 @@ function dessinerMursTraces(ctx, repere, versEcranFn) {
         if (Math.hypot(b.x - a.x, b.y - a.y) < 34) return;   // façade trop courte pour une pastille lisible
         ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7);
         ctx.fillStyle = actif ? '#D97706' : '#FFFFFF';
-        ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = actif ? '#B45309' : '#94A3B8'; ctx.stroke();
+        ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = actif ? '#B45309' : (m ? '#94A3B8' : '#E2E8F0'); ctx.stroke();
         ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = actif ? '#FFFFFF' : '#475569';
-        ctx.fillText(String(m.ori || '?').slice(0, 1), mx, my);
+        ctx.fillStyle = actif ? '#FFFFFF' : (m ? '#475569' : '#CBD5E1');
+        ctx.fillText(String((m ? m.ori : f.ori) || '?').slice(0, 1), mx, my);
     });
 }
 // Dessin commun aux deux plans : versEcran convertit du repère du support vers l'écran.
@@ -2061,7 +2109,7 @@ function creerMursDepuisContour(contour, hauteur, repere) {
         const dx = b.x - a.x, dy = b.y - a.y;
         const l = Math.hypot(dx, dy);
         if (l < 0.05) continue;
-        const ori = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'Nord' : 'Sud') : (dy >= 0 ? 'Est' : 'Ouest');
+        const ori = orientationSegment(dx, dy);
         // `seg` situe le mur sur le plan dont il est issu : c'est ce qui permet
         // ensuite de rattacher une fenêtre au mur qu'elle perce, d'un simple appui.
         db.murs.push({ id: Date.now() + Math.random(), aid: curAppt, nivInt: curNivInt, ori, donne: 'Extérieur', mat: 'Inconnu', l: l.toFixed(2), h: String(hauteur || ''), ep: '', iso: 'Non', isoEp: '', doub: 'ABSENT', vectX: dx, vectY: dy, repere: repere || '', seg: { ax: a.x, ay: a.y, bx: b.x, by: b.y } });
@@ -2638,9 +2686,9 @@ function majInterfaceCalque() {
             // Le repérage des fenêtres ne dépend pas de l'échelle : il passe en premier.
             if (cal.mode === 'gommettes') {
                 const champ = CHAMP_GOM.calque; const liste = ouvrantsCourants();
-                const traces = mursTraces('calque').length;
-                const conseil = traces
-                    ? `Posez la gommette le long d’une façade : elle se rattache au mur percé (${traces} mur(s) repéré(s) 📐).`
+                const reliees = facadesDuPlan('calque').filter(f => f.mur).length;
+                const conseil = reliees
+                    ? `Posez la gommette le long d’une façade : elle se rattache au mur percé (${reliees} façade(s) reconnue(s) 📐).`
                     : 'Touchez une fenêtre dans la liste puis l’endroit du plan. Une gommette posée se déplace au doigt.';
                 res.innerHTML = `📍 <b>Repérage des ouvrants</b> — ${liste.filter(x => x.o[champ]).length} / ${liste.length} posée(s)<br><span style="font-size:12px;">${conseil}</span>`;
             }
